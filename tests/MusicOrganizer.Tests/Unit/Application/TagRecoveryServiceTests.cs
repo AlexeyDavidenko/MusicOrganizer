@@ -1,0 +1,139 @@
+using System.Runtime.CompilerServices;
+using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
+using MusicOrganizer.Application.Journal;
+using MusicOrganizer.Application.Recovery;
+using MusicOrganizer.Application.Scanning;
+using MusicOrganizer.Domain;
+using MusicOrganizer.Domain.Journal;
+using MusicOrganizer.Domain.TagRecovery;
+
+namespace MusicOrganizer.Tests.Unit.Application;
+
+public class TagRecoveryServiceTests
+{
+    private const string FilePath = "Some Artist - Some Title.mp3";
+
+    [Fact]
+    public async Task RecoverAsync_DoesNotWriteOrJournal_WhenDryRun()
+    {
+        var scanner = new FakeFileSystemScanner([FilePath]);
+        var reader = new FakeAudioTagReader(_ => ScanEntry.Success(FilePath, EmptyTags()));
+        var writer = new FakeTagWriter(_ => TagWriteResult.Success(FilePath));
+        var journal = new FakeJournal();
+        var sut = new TagRecoveryService(scanner, reader, writer, journal, NullLogger<TagRecoveryService>.Instance);
+
+        var outcomes = await CollectAsync(sut.RecoverAsync("root", Guid.NewGuid(), dryRun: true));
+
+        outcomes.Should().ContainSingle();
+        outcomes[0].Applied.Should().BeFalse();
+        outcomes[0].HasRecovery.Should().BeTrue();
+        writer.CallCount.Should().Be(0);
+        journal.RecordCallCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task RecoverAsync_RecordsJournalBeforeWriting_WhenApplying()
+    {
+        var scanner = new FakeFileSystemScanner([FilePath]);
+        var reader = new FakeAudioTagReader(_ => ScanEntry.Success(FilePath, EmptyTags()));
+        var callOrder = new List<string>();
+        var writer = new FakeTagWriter(path =>
+        {
+            callOrder.Add("write");
+            return TagWriteResult.Success(path);
+        });
+        var journal = new FakeJournal(onRecord: () => callOrder.Add("journal"));
+        var sut = new TagRecoveryService(scanner, reader, writer, journal, NullLogger<TagRecoveryService>.Instance);
+
+        var outcomes = await CollectAsync(sut.RecoverAsync("root", Guid.NewGuid(), dryRun: false));
+
+        outcomes.Should().ContainSingle();
+        outcomes[0].Applied.Should().BeTrue();
+        callOrder.Should().Equal("journal", "write");
+    }
+
+    [Fact]
+    public async Task RecoverAsync_ContinuesPastAWriteFailure_OnOtherFiles()
+    {
+        var paths = new[] { "bad - file.mp3", "good - file.mp3" };
+        var scanner = new FakeFileSystemScanner(paths);
+        var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, EmptyTags()));
+        var writer = new FakeTagWriter(path => path == "bad - file.mp3"
+            ? TagWriteResult.Failure(path, "disk full")
+            : TagWriteResult.Success(path));
+        var journal = new FakeJournal();
+        var sut = new TagRecoveryService(scanner, reader, writer, journal, NullLogger<TagRecoveryService>.Instance);
+
+        var outcomes = await CollectAsync(sut.RecoverAsync("root", Guid.NewGuid(), dryRun: false));
+
+        outcomes.Should().HaveCount(2);
+        outcomes[0].Error.Should().Be("disk full");
+        outcomes[1].Applied.Should().BeTrue();
+    }
+
+    private static AudioTags EmptyTags() => new(Title: null, Artist: null, Album: null, Year: null, TrackNumber: null, Genre: null);
+
+    private static async Task<List<TagRecoveryOutcome>> CollectAsync(IAsyncEnumerable<TagRecoveryOutcome> source)
+    {
+        var results = new List<TagRecoveryOutcome>();
+        await foreach (var item in source)
+        {
+            results.Add(item);
+        }
+
+        return results;
+    }
+
+    private sealed class FakeFileSystemScanner(IReadOnlyList<string> paths) : IFileSystemScanner
+    {
+        public async IAsyncEnumerable<string> EnumerateAudioFilesAsync(
+            string rootPath,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            foreach (var path in paths)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return path;
+                await Task.Yield();
+            }
+        }
+    }
+
+    private sealed class FakeAudioTagReader(Func<string, ScanEntry> factory) : IAudioTagReader
+    {
+        public Task<ScanEntry> ReadTagsAsync(string filePath, CancellationToken cancellationToken = default) =>
+            Task.FromResult(factory(filePath));
+    }
+
+    private sealed class FakeTagWriter(Func<string, TagWriteResult> factory) : ITagWriter
+    {
+        public int CallCount { get; private set; }
+
+        public Task<TagWriteResult> WriteTagsAsync(string filePath, AudioTags tags, CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            return Task.FromResult(factory(filePath));
+        }
+    }
+
+    private sealed class FakeJournal(Action? onRecord = null) : IOperationJournal
+    {
+        public int RecordCallCount { get; private set; }
+
+        public Task<JournalEntry> RecordAsync(Guid runId, string filePath, string operationType, CancellationToken cancellationToken = default)
+        {
+            RecordCallCount++;
+            onRecord?.Invoke();
+            return Task.FromResult(new JournalEntry(Guid.NewGuid(), runId, filePath, filePath + ".bak", operationType, DateTimeOffset.UtcNow));
+        }
+
+        public async IAsyncEnumerable<JournalEntry> GetEntriesAsync(Guid runId, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+
+        public Task RestoreAsync(JournalEntry entry, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+}

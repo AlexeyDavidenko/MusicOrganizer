@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using MusicOrganizer.Application.Journal;
+using MusicOrganizer.Application.Recovery;
 using MusicOrganizer.Application.Scanning;
 
 namespace MusicOrganizer.Application;
@@ -16,6 +18,8 @@ public static class DependencyInjection
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         services.AddTransient<CollectionScanner>();
+        services.AddTransient<TagRecoveryService>();
+        services.AddTransient<RollbackRunUseCase>();
         return services;
     }
 }
