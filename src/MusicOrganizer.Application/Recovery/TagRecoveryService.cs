@@ -82,7 +82,7 @@ public sealed partial class TagRecoveryService
                 continue;
             }
 
-            await _journal.RecordAsync(runId, filePath, OperationType, cancellationToken);
+            await _journal.RecordMutationAsync(runId, filePath, OperationType, cancellationToken);
             var writeResult = await _tagWriter.WriteTagsAsync(filePath, proposal.MergedTags, cancellationToken);
 
             yield return new TagRecoveryOutcome
