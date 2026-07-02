@@ -2,6 +2,8 @@ using System.CommandLine;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MusicOrganizer.Application;
+using MusicOrganizer.Application.Journal;
+using MusicOrganizer.Application.Recovery;
 using MusicOrganizer.Application.Scanning;
 using MusicOrganizer.Infrastructure;
 
@@ -51,7 +53,82 @@ scanCommand.SetAction(async (parseResult, cancellationToken) =>
     return failed == 0 ? 0 : 1;
 });
 
+var recoverPathArgument = new Argument<string>("path") { Description = "Root folder to scan for MP3 files" };
+recoverPathArgument.Validators.Add(result =>
+{
+    var path = result.GetValueOrDefault<string>();
+    if (path is null || !Directory.Exists(path))
+    {
+        result.AddError($"Folder not found: {path}");
+    }
+});
+
+var applyOption = new Option<bool>("--apply") { Description = "Actually write changes (default is dry-run: report only)" };
+
+var recoverTagsCommand = new Command("recover-tags", "Recover missing Artist/Title tags from file names");
+recoverTagsCommand.Arguments.Add(recoverPathArgument);
+recoverTagsCommand.Options.Add(applyOption);
+recoverTagsCommand.SetAction(async (parseResult, cancellationToken) =>
+{
+    var path = parseResult.GetValue(recoverPathArgument)!;
+    var apply = parseResult.GetValue(applyOption);
+    var runId = Guid.NewGuid();
+    var recoveryService = host.Services.GetRequiredService<TagRecoveryService>();
+
+    var total = 0;
+    var recovered = 0;
+    var failed = 0;
+
+    await foreach (var outcome in recoveryService.RecoverAsync(path, runId, dryRun: !apply, cancellationToken))
+    {
+        total++;
+        if (outcome.Error is not null)
+        {
+            failed++;
+            Console.WriteLine($"[ERROR]     {outcome.FilePath} — {outcome.Error}");
+        }
+        else if (outcome.HasRecovery)
+        {
+            recovered++;
+            var fields = string.Join(", ", outcome.RecoveredFields);
+            var verb = apply ? "RECOVERED" : "WOULD RECOVER";
+            Console.WriteLine($"[{verb}] {outcome.FilePath} — {fields}");
+        }
+    }
+
+    Console.WriteLine($"Scanned {total} file(s): {recovered} recovered, {failed} error(s).");
+    if (apply && recovered > 0)
+    {
+        Console.WriteLine($"Run id (use with 'rollback' to undo): {runId}");
+    }
+
+    return failed == 0 ? 0 : 1;
+});
+
+var runIdArgument = new Argument<Guid>("run-id") { Description = "Run id printed by 'recover-tags --apply'" };
+
+var rollbackCommand = new Command("rollback", "Restore files backed up during a previous run");
+rollbackCommand.Arguments.Add(runIdArgument);
+rollbackCommand.SetAction(async (parseResult, cancellationToken) =>
+{
+    var runId = parseResult.GetValue(runIdArgument);
+    var rollbackUseCase = host.Services.GetRequiredService<RollbackRunUseCase>();
+
+    var restored = 0;
+
+    await foreach (var entry in rollbackUseCase.RollbackAsync(runId, cancellationToken))
+    {
+        restored++;
+        Console.WriteLine($"[RESTORED] {entry.OriginalPath}");
+    }
+
+    Console.WriteLine($"Restored {restored} file(s) from run {runId}.");
+    return restored > 0 ? 0 : 1;
+});
+
 var rootCommand = new RootCommand("MusicOrganizer - professional MP3 collection manager");
 rootCommand.Subcommands.Add(scanCommand);
+rootCommand.Subcommands.Add(recoverTagsCommand);
+rootCommand.Subcommands.Add(rollbackCommand);
 
 return await rootCommand.Parse(args).InvokeAsync();
