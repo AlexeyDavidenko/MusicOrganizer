@@ -121,11 +121,18 @@ public class TagRecoveryServiceTests
     {
         public int RecordCallCount { get; private set; }
 
-        public Task<JournalEntry> RecordAsync(Guid runId, string filePath, string operationType, CancellationToken cancellationToken = default)
+        public Task<JournalEntry> RecordMutationAsync(Guid runId, string filePath, string operationType, CancellationToken cancellationToken = default)
         {
             RecordCallCount++;
             onRecord?.Invoke();
-            return Task.FromResult(new JournalEntry(Guid.NewGuid(), runId, filePath, filePath + ".bak", operationType, DateTimeOffset.UtcNow));
+            return Task.FromResult(new JournalEntry(Guid.NewGuid(), runId, filePath, filePath + ".bak", null, operationType, DateTimeOffset.UtcNow));
+        }
+
+        public Task<JournalEntry> RecordMoveAsync(Guid runId, string originalPath, string newPath, string operationType, CancellationToken cancellationToken = default)
+        {
+            RecordCallCount++;
+            onRecord?.Invoke();
+            return Task.FromResult(new JournalEntry(Guid.NewGuid(), runId, originalPath, null, newPath, operationType, DateTimeOffset.UtcNow));
         }
 
         public async IAsyncEnumerable<JournalEntry> GetEntriesAsync(Guid runId, [EnumeratorCancellation] CancellationToken cancellationToken = default)

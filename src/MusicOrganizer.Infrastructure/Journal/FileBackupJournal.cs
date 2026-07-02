@@ -7,9 +7,10 @@ using MusicOrganizer.Domain.Journal;
 namespace MusicOrganizer.Infrastructure.Journal;
 
 /// <summary>
-/// Journal that backs up a full copy of each file before it is mutated, and persists journal
-/// entries to a manifest file under the user's local application data folder — so a later,
-/// separate process invocation (e.g. a `rollback` command) can still find and restore them.
+/// Journal that backs up a full copy of each in-place-mutated file (or, for a move, simply
+/// records the path change) before it happens, and persists journal entries to a manifest file
+/// under the user's local application data folder — so a later, separate process invocation
+/// (e.g. a `rollback` command) can still find and restore them.
 /// </summary>
 public sealed partial class FileBackupJournal : IOperationJournal
 {
@@ -34,7 +35,7 @@ public sealed partial class FileBackupJournal : IOperationJournal
     }
 
     /// <inheritdoc />
-    public async Task<JournalEntry> RecordAsync(
+    public async Task<JournalEntry> RecordMutationAsync(
         Guid runId,
         string filePath,
         string operationType,
@@ -48,10 +49,28 @@ public sealed partial class FileBackupJournal : IOperationJournal
         var backupPath = Path.Combine(backupsDirectory, $"{entryId}.bak");
         File.Copy(filePath, backupPath, overwrite: false);
 
-        var entry = new JournalEntry(entryId, runId, filePath, backupPath, operationType, DateTimeOffset.UtcNow);
+        var entry = new JournalEntry(entryId, runId, filePath, backupPath, null, operationType, DateTimeOffset.UtcNow);
         await AppendToManifestAsync(runDirectory, entry, cancellationToken);
 
         LogEntryRecorded(entry.Id, runId, filePath);
+        return entry;
+    }
+
+    /// <inheritdoc />
+    public async Task<JournalEntry> RecordMoveAsync(
+        Guid runId,
+        string originalPath,
+        string newPath,
+        string operationType,
+        CancellationToken cancellationToken = default)
+    {
+        var runDirectory = GetRunDirectory(runId);
+        Directory.CreateDirectory(runDirectory);
+
+        var entry = new JournalEntry(Guid.NewGuid(), runId, originalPath, null, newPath, operationType, DateTimeOffset.UtcNow);
+        await AppendToManifestAsync(runDirectory, entry, cancellationToken);
+
+        LogEntryRecorded(entry.Id, runId, originalPath);
         return entry;
     }
 
@@ -77,7 +96,16 @@ public sealed partial class FileBackupJournal : IOperationJournal
     public Task RestoreAsync(JournalEntry entry, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        File.Copy(entry.BackupPath, entry.OriginalPath, overwrite: true);
+
+        if (entry.NewPath is not null)
+        {
+            File.Move(entry.NewPath, entry.OriginalPath, overwrite: true);
+        }
+        else if (entry.BackupPath is not null)
+        {
+            File.Copy(entry.BackupPath, entry.OriginalPath, overwrite: true);
+        }
+
         LogEntryRestored(entry.Id, entry.RunId, entry.OriginalPath);
         return Task.CompletedTask;
     }

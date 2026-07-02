@@ -18,13 +18,32 @@ public class FileBackupJournalTests : IDisposable
         var runId = Guid.NewGuid();
         var journal = new FileBackupJournal(NullLogger<FileBackupJournal>.Instance, JournalRoot);
 
-        var entry = await journal.RecordAsync(runId, filePath, "tag-recovery");
+        var entry = await journal.RecordMutationAsync(runId, filePath, "tag-recovery");
 
         await File.WriteAllTextAsync(filePath, "mutated content");
         await journal.RestoreAsync(entry);
 
         var restoredContent = await File.ReadAllTextAsync(filePath);
         restoredContent.Should().Be("original content");
+    }
+
+    [Fact]
+    public async Task RecordMoveAndRestore_MovesTheFileBackToItsOriginalPath()
+    {
+        var originalPath = Path.Combine(_root, "Original Name.mp3");
+        var newPath = Path.Combine(_root, "New Name.mp3");
+        await File.WriteAllTextAsync(originalPath, "content");
+
+        var runId = Guid.NewGuid();
+        var journal = new FileBackupJournal(NullLogger<FileBackupJournal>.Instance, JournalRoot);
+
+        var entry = await journal.RecordMoveAsync(runId, originalPath, newPath, "rename");
+        File.Move(originalPath, newPath);
+
+        await journal.RestoreAsync(entry);
+
+        File.Exists(originalPath).Should().BeTrue();
+        File.Exists(newPath).Should().BeFalse();
     }
 
     [Fact]
@@ -35,7 +54,7 @@ public class FileBackupJournalTests : IDisposable
 
         var runId = Guid.NewGuid();
         var firstJournal = new FileBackupJournal(NullLogger<FileBackupJournal>.Instance, JournalRoot);
-        var recorded = await firstJournal.RecordAsync(runId, filePath, "tag-recovery");
+        var recorded = await firstJournal.RecordMutationAsync(runId, filePath, "tag-recovery");
 
         var secondJournal = new FileBackupJournal(NullLogger<FileBackupJournal>.Instance, JournalRoot);
         var entries = new List<MusicOrganizer.Domain.Journal.JournalEntry>();

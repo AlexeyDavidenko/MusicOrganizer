@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using MusicOrganizer.Application.Journal;
 using MusicOrganizer.Application.Recovery;
+using MusicOrganizer.Application.Renaming;
 using MusicOrganizer.Application.Scanning;
 
 namespace MusicOrganizer.Application;
@@ -20,6 +21,7 @@ public static class DependencyInjection
         services.AddTransient<CollectionScanner>();
         services.AddTransient<TagRecoveryService>();
         services.AddTransient<RollbackRunUseCase>();
+        services.AddTransient<RenameEngine>();
         return services;
     }
 }

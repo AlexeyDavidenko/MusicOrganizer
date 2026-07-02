@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using MusicOrganizer.Application;
 using MusicOrganizer.Application.Journal;
 using MusicOrganizer.Application.Recovery;
+using MusicOrganizer.Application.Renaming;
 using MusicOrganizer.Application.Scanning;
 using MusicOrganizer.Infrastructure;
 
@@ -105,7 +106,58 @@ recoverTagsCommand.SetAction(async (parseResult, cancellationToken) =>
     return failed == 0 ? 0 : 1;
 });
 
-var runIdArgument = new Argument<Guid>("run-id") { Description = "Run id printed by 'recover-tags --apply'" };
+var renamePathArgument = new Argument<string>("path") { Description = "Root folder to scan for MP3 files" };
+renamePathArgument.Validators.Add(result =>
+{
+    var path = result.GetValueOrDefault<string>();
+    if (path is null || !Directory.Exists(path))
+    {
+        result.AddError($"Folder not found: {path}");
+    }
+});
+
+var renameApplyOption = new Option<bool>("--apply") { Description = "Actually rename files (default is dry-run: report only)" };
+
+var renameCommand = new Command("rename", "Rename files to 'Artist-Title.mp3' using their tags");
+renameCommand.Arguments.Add(renamePathArgument);
+renameCommand.Options.Add(renameApplyOption);
+renameCommand.SetAction(async (parseResult, cancellationToken) =>
+{
+    var path = parseResult.GetValue(renamePathArgument)!;
+    var apply = parseResult.GetValue(renameApplyOption);
+    var runId = Guid.NewGuid();
+    var renameEngine = host.Services.GetRequiredService<RenameEngine>();
+
+    var total = 0;
+    var renamed = 0;
+    var failed = 0;
+
+    await foreach (var outcome in renameEngine.RenameAsync(path, runId, dryRun: !apply, cancellationToken))
+    {
+        total++;
+        if (outcome.Error is not null)
+        {
+            failed++;
+            Console.WriteLine($"[ERROR]       {outcome.OriginalPath} — {outcome.Error}");
+        }
+        else if (outcome.NeedsRename)
+        {
+            renamed++;
+            var verb = apply ? "RENAMED" : "WOULD RENAME";
+            Console.WriteLine($"[{verb}] {outcome.OriginalPath} -> {outcome.ProposedPath}");
+        }
+    }
+
+    Console.WriteLine($"Scanned {total} file(s): {renamed} renamed, {failed} error(s).");
+    if (apply && renamed > 0)
+    {
+        Console.WriteLine($"Run id (use with 'rollback' to undo): {runId}");
+    }
+
+    return failed == 0 ? 0 : 1;
+});
+
+var runIdArgument = new Argument<Guid>("run-id") { Description = "Run id printed by 'recover-tags --apply' or 'rename --apply'" };
 
 var rollbackCommand = new Command("rollback", "Restore files backed up during a previous run");
 rollbackCommand.Arguments.Add(runIdArgument);
@@ -129,6 +181,7 @@ rollbackCommand.SetAction(async (parseResult, cancellationToken) =>
 var rootCommand = new RootCommand("MusicOrganizer - professional MP3 collection manager");
 rootCommand.Subcommands.Add(scanCommand);
 rootCommand.Subcommands.Add(recoverTagsCommand);
+rootCommand.Subcommands.Add(renameCommand);
 rootCommand.Subcommands.Add(rollbackCommand);
 
 return await rootCommand.Parse(args).InvokeAsync();
