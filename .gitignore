@@ -1,0 +1,13 @@
+bin/
+obj/
+/packages/
+riderModule.iml
+/_ReSharper.Caches/
+.DS_Store
+*.user
+.vs/
+.idea/
+
+# AI agent instructions and internal project docs — not part of the public project, stay local only.
+/PROMPT.md
+/docs/

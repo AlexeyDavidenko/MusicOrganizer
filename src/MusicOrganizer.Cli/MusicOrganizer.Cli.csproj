@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>musicorganizer</AssemblyName>
+    <RootNamespace>MusicOrganizer.Cli</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MusicOrganizer.Application\MusicOrganizer.Application.csproj" />
+    <ProjectReference Include="..\MusicOrganizer.Infrastructure\MusicOrganizer.Infrastructure.csproj" />
+    <ProjectReference Include="..\MusicOrganizer.Shared\MusicOrganizer.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="System.CommandLine" />
+  </ItemGroup>
+
+</Project>
