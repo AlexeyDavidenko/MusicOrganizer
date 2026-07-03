@@ -1,11 +1,14 @@
 using System.CommandLine;
+using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MusicOrganizer.Application;
+using MusicOrganizer.Application.Deduplication;
 using MusicOrganizer.Application.Journal;
 using MusicOrganizer.Application.Recovery;
 using MusicOrganizer.Application.Renaming;
 using MusicOrganizer.Application.Scanning;
+using MusicOrganizer.Domain.Deduplication;
 using MusicOrganizer.Infrastructure;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -157,6 +160,57 @@ renameCommand.SetAction(async (parseResult, cancellationToken) =>
     return failed == 0 ? 0 : 1;
 });
 
+var findDuplicatesPathArgument = new Argument<string>("path") { Description = "Root folder to scan for MP3 files" };
+findDuplicatesPathArgument.Validators.Add(result =>
+{
+    var path = result.GetValueOrDefault<string>();
+    if (path is null || !Directory.Exists(path))
+    {
+        result.AddError($"Folder not found: {path}");
+    }
+});
+
+var findDuplicatesCommand = new Command("find-duplicates", "Find duplicate MP3 files by exact content and by matching tags");
+findDuplicatesCommand.Arguments.Add(findDuplicatesPathArgument);
+findDuplicatesCommand.SetAction(async (parseResult, cancellationToken) =>
+{
+    var path = parseResult.GetValue(findDuplicatesPathArgument)!;
+    var duplicateFinder = host.Services.GetRequiredService<DuplicateFinder>();
+
+    var groups = await duplicateFinder.FindAsync(path, cancellationToken);
+    var exactGroups = groups.Where(g => g.Kind == DuplicateMatchKind.Exact).ToList();
+    var tagMatchGroups = groups.Where(g => g.Kind == DuplicateMatchKind.TagMatch).ToList();
+
+    var wastedBytes = 0L;
+    foreach (var group in exactGroups)
+    {
+        var groupWastedBytes = (group.FilePaths.Count - 1) * (group.FileSize ?? 0);
+        wastedBytes += groupWastedBytes;
+        Console.WriteLine($"[EXACT]     {group.FilePaths.Count} file(s), {FormatBytes(group.FileSize ?? 0)} each ({FormatBytes(groupWastedBytes)} wasted):");
+        foreach (var filePath in group.FilePaths)
+        {
+            Console.WriteLine($"            {filePath}");
+        }
+    }
+
+    foreach (var group in tagMatchGroups)
+    {
+        Console.WriteLine($"[TAG MATCH] {group.FilePaths.Count} file(s) with matching Artist/Title:");
+        foreach (var filePath in group.FilePaths)
+        {
+            Console.WriteLine($"            {filePath}");
+        }
+    }
+
+    Console.WriteLine(
+        $"Found {exactGroups.Count} exact group(s) ({FormatBytes(wastedBytes)} wasted) " +
+        $"and {tagMatchGroups.Count} tag-match group(s).");
+
+    return 0;
+});
+
+static string FormatBytes(long bytes) => (bytes / 1024.0 / 1024.0).ToString("0.00", CultureInfo.InvariantCulture) + " MB";
+
 var runIdArgument = new Argument<Guid>("run-id") { Description = "Run id printed by 'recover-tags --apply' or 'rename --apply'" };
 
 var rollbackCommand = new Command("rollback", "Restore files backed up during a previous run");
@@ -182,6 +236,7 @@ var rootCommand = new RootCommand("MusicOrganizer - professional MP3 collection 
 rootCommand.Subcommands.Add(scanCommand);
 rootCommand.Subcommands.Add(recoverTagsCommand);
 rootCommand.Subcommands.Add(renameCommand);
+rootCommand.Subcommands.Add(findDuplicatesCommand);
 rootCommand.Subcommands.Add(rollbackCommand);
 
 return await rootCommand.Parse(args).InvokeAsync();
