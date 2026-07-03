@@ -1,0 +1,13 @@
+bin/
+obj/
+.git/
+.idea/
+.vs/
+tests/
+docs/
+PROMPT.md
+*.md
+.editorconfig
+.dockerignore
+Dockerfile
+.github/

@@ -1,20 +1,25 @@
 # MusicOrganizer
 
+[![CI](https://github.com/AlexeyDavidenko/MusicOrganizer/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexeyDavidenko/MusicOrganizer/actions/workflows/ci.yml)
+
 Кроссплатформенное CLI-приложение на .NET 10 для профессионального управления большой музыкальной
 коллекцией MP3 (рассчитано на коллекции от сотен тысяч до миллиона+ файлов).
 
-> Проект в ранней стадии разработки (bootstrap). Часть функциональности, описанной ниже, ещё не
-> реализована — актуальный статус см. в разделе [Статус проекта](#статус-проекта).
+## Возможности
 
-## Возможности (целевые)
+Реализовано:
 
-- Восстановление повреждённых и отсутствующих ID3-тегов (ID3v1, ID3v2.2–2.4)
-- Определение и исправление некорректных кодировок в тегах
-- Переименование файлов и папок по настраиваемым шаблонам
-- Организация структуры коллекции (Artist/Album/Track)
-- Поиск дубликатов
-- Построение отчётов
-- Dry Run, Transaction Log и безопасный откат (rollback) для любой операции
+- Сканирование коллекции и чтение ID3-тегов (`scan`)
+- Восстановление отсутствующих Artist/Title из имени файла (`recover-tags`)
+- Переименование файлов по шаблону `Artist-Title.mp3` (`rename`)
+- Поиск дубликатов — точное совпадение по содержимому и вероятностное по тегам (`find-duplicates`)
+- Dry Run, Transaction Log и откат (`rollback`) для всех мутирующих операций
+
+В планах (см. `docs/TODO.md` — локальный, не в этом репозитории):
+
+- Восстановление тегов из структуры папок и других источников
+- Определение и исправление некорректных кодировок
+- Организация структуры коллекции (Artist/Album/Track), удаление дубликатов, отчёты
 
 ## Технологии
 
@@ -50,25 +55,50 @@ dotnet test
 dotnet run --project src/MusicOrganizer.Cli -- --help
 ```
 
-### Пример: сканирование коллекции
+### Примеры
 
 ```bash
+# Сканирование: рекурсивно находит *.mp3, читает теги, печатает отчёт
 dotnet run --project src/MusicOrganizer.Cli -- scan /path/to/music
+
+# Восстановление тегов: dry-run по умолчанию, --apply — реальная запись
+dotnet run --project src/MusicOrganizer.Cli -- recover-tags /path/to/music
+dotnet run --project src/MusicOrganizer.Cli -- recover-tags /path/to/music --apply
+
+# Переименование по шаблону Artist-Title.mp3
+dotnet run --project src/MusicOrganizer.Cli -- rename /path/to/music --apply
+
+# Откат последней применённой операции (recover-tags/rename с --apply печатают run id)
+dotnet run --project src/MusicOrganizer.Cli -- rollback <run-id>
+
+# Поиск дубликатов (read-only)
+dotnet run --project src/MusicOrganizer.Cli -- find-duplicates /path/to/music
 ```
 
-Рекурсивно находит все `*.mp3` под указанной папкой, читает теги и печатает построчный отчёт
-(`[OK]`/`[ERROR]`) плюс итоговую сводку. Ни одна ошибка на отдельном файле не прерывает скан
-остальной коллекции.
+Ни одна ошибка на отдельном файле не прерывает обработку остальной коллекции.
+
+## Docker
+
+```bash
+docker build -t musicorganizer .
+docker run --rm -v /path/to/music:/music musicorganizer scan /music
+```
+
+Multi-stage образ на официальных `mcr.microsoft.com/dotnet` образах, non-root пользователь,
+поддержка `linux/amd64` и `linux/arm64`. Образы для `main` публикуются в GHCR
+(`ghcr.io/alexeydavidenko/musicorganizer`) при каждом пуше.
 
 ## Разработка
 
 Перед коммитом: `dotnet format --verify-no-changes`, `dotnet build` (0 warnings, включён
-`TreatWarningsAsErrors`), `dotnet test`.
+`TreatWarningsAsErrors`), `dotnet test`. CI (GitHub Actions) прогоняет то же самое на
+Linux/Windows/macOS при каждом PR.
 
 ## Статус проекта
 
-Ранняя стадия: скаффолдинг Clean Architecture завершён, реализована первая вертикальная фича
-(сканирование папки → чтение тегов → отчёт).
+Активная разработка: 4 команды реализованы (`scan`, `recover-tags`, `rename`, `find-duplicates`)
+плюс общий Journal/Rollback, 51 тест, CI/CD пайплайн с автосборкой Docker-образа и релизами по
+тегам.
 
 ## Лицензия
 

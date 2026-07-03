@@ -10,6 +10,10 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <Deterministic>true</Deterministic>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- NU1900: NuGet audit itself failed to run (e.g. network hiccup fetching vulnerability data) -
+         not a finding. TreatWarningsAsErrors would otherwise turn a transient network failure into
+         a build/CI failure. Actual vulnerability findings (NU1902/NU1903) stay hard errors. -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1900</WarningsNotAsErrors>
   </PropertyGroup>
 
   <!-- Test projects have no public API surface, so XML doc requirements don't apply. -->

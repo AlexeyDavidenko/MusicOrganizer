@@ -12,16 +12,20 @@ namespace MusicOrganizer.Tests.Unit.Application;
 
 public class RenameEngineTests
 {
+    private static readonly string RootPath = Path.Combine("music");
+    private static readonly string OriginalPath = Path.Combine(RootPath, "original.mp3");
+    private static readonly string ProposedPath = Path.Combine(RootPath, "Artist-Title.mp3");
+
     [Fact]
     public async Task RenameAsync_DoesNotRenameOrJournal_WhenDryRun()
     {
-        var scanner = new FakeFileSystemScanner(["/music/original.mp3"]);
+        var scanner = new FakeFileSystemScanner([OriginalPath]);
         var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, TagsFor("Artist", "Title")));
         var renamer = new FakeFileRenamer(exists: _ => false);
         var journal = new FakeJournal();
         var sut = new RenameEngine(scanner, reader, renamer, journal, NullLogger<RenameEngine>.Instance);
 
-        var outcomes = await CollectAsync(sut.RenameAsync("/music", Guid.NewGuid(), dryRun: true));
+        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: true));
 
         outcomes.Should().ContainSingle();
         outcomes[0].Applied.Should().BeFalse();
@@ -33,7 +37,7 @@ public class RenameEngineTests
     [Fact]
     public async Task RenameAsync_JournalsBeforeRenaming_WhenApplying()
     {
-        var scanner = new FakeFileSystemScanner(["/music/original.mp3"]);
+        var scanner = new FakeFileSystemScanner([OriginalPath]);
         var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, TagsFor("Artist", "Title")));
         var callOrder = new List<string>();
         var renamer = new FakeFileRenamer(
@@ -42,7 +46,7 @@ public class RenameEngineTests
         var journal = new FakeJournal(onRecordMove: () => callOrder.Add("journal"));
         var sut = new RenameEngine(scanner, reader, renamer, journal, NullLogger<RenameEngine>.Instance);
 
-        var outcomes = await CollectAsync(sut.RenameAsync("/music", Guid.NewGuid(), dryRun: false));
+        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: false));
 
         outcomes.Should().ContainSingle();
         outcomes[0].Applied.Should().BeTrue();
@@ -52,13 +56,13 @@ public class RenameEngineTests
     [Fact]
     public async Task RenameAsync_SkipsWithoutError_WhenArtistOrTitleIsMissing()
     {
-        var scanner = new FakeFileSystemScanner(["/music/unknown.mp3"]);
+        var scanner = new FakeFileSystemScanner([Path.Combine(RootPath, "unknown.mp3")]);
         var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, TagsFor(null, "Title")));
         var renamer = new FakeFileRenamer(exists: _ => false);
         var journal = new FakeJournal();
         var sut = new RenameEngine(scanner, reader, renamer, journal, NullLogger<RenameEngine>.Instance);
 
-        var outcomes = await CollectAsync(sut.RenameAsync("/music", Guid.NewGuid(), dryRun: false));
+        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: false));
 
         outcomes.Should().ContainSingle();
         outcomes[0].Error.Should().BeNull();
@@ -69,33 +73,34 @@ public class RenameEngineTests
     [Fact]
     public async Task RenameAsync_ResolvesNameCollisions_ToTheNextAvailableCandidate()
     {
-        var scanner = new FakeFileSystemScanner(["/music/original.mp3"]);
+        var scanner = new FakeFileSystemScanner([OriginalPath]);
         var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, TagsFor("Artist", "Title")));
-        var renamer = new FakeFileRenamer(exists: path => path == "/music/Artist-Title.mp3");
+        var renamer = new FakeFileRenamer(exists: path => path == ProposedPath);
         var journal = new FakeJournal();
         var sut = new RenameEngine(scanner, reader, renamer, journal, NullLogger<RenameEngine>.Instance);
 
-        var outcomes = await CollectAsync(sut.RenameAsync("/music", Guid.NewGuid(), dryRun: true));
+        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: true));
 
         outcomes.Should().ContainSingle();
-        outcomes[0].ProposedPath.Should().Be("/music/Artist-Title (1).mp3");
+        outcomes[0].ProposedPath.Should().Be(Path.Combine(RootPath, "Artist-Title (1).mp3"));
     }
 
     [Fact]
     public async Task RenameAsync_ContinuesPastARenameFailure_OnOtherFiles()
     {
-        var paths = new[] { "/music/a.mp3", "/music/b.mp3" };
-        var scanner = new FakeFileSystemScanner(paths);
+        var pathA = Path.Combine(RootPath, "a.mp3");
+        var pathB = Path.Combine(RootPath, "b.mp3");
+        var scanner = new FakeFileSystemScanner([pathA, pathB]);
         var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, TagsFor("Artist", "Title")));
         var renamer = new FakeFileRenamer(
             exists: _ => false,
-            renameResult: path => path == "/music/a.mp3"
+            renameResult: path => path == pathA
                 ? RenameResult.Failure(path, "disk full")
-                : RenameResult.Success(path, "/music/Artist-Title.mp3"));
+                : RenameResult.Success(path, ProposedPath));
         var journal = new FakeJournal();
         var sut = new RenameEngine(scanner, reader, renamer, journal, NullLogger<RenameEngine>.Instance);
 
-        var outcomes = await CollectAsync(sut.RenameAsync("/music", Guid.NewGuid(), dryRun: false));
+        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: false));
 
         outcomes.Should().HaveCount(2);
         outcomes[0].Error.Should().Be("disk full");

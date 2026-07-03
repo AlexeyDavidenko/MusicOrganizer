@@ -6,11 +6,14 @@ namespace MusicOrganizer.Tests.Unit.Domain;
 public class RenameConflictResolverTests
 {
     [Theory]
-    [InlineData(1, "/music/Artist-Title (1).mp3")]
-    [InlineData(2, "/music/Artist-Title (2).mp3")]
-    public void NextCandidate_InsertsAttemptNumber_BeforeTheExtension(int attempt, string expected)
+    [InlineData(1)]
+    [InlineData(2)]
+    public void NextCandidate_InsertsAttemptNumber_BeforeTheExtension(int attempt)
     {
-        var result = RenameConflictResolver.NextCandidate("/music/Artist-Title.mp3", attempt);
+        var path = Path.Combine("music", "Artist-Title.mp3");
+        var expected = Path.Combine("music", $"Artist-Title ({attempt}).mp3");
+
+        var result = RenameConflictResolver.NextCandidate(path, attempt);
 
         result.Should().Be(expected);
     }
