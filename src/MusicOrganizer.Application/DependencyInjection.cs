@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using MusicOrganizer.Application.Deduplication;
 using MusicOrganizer.Application.Journal;
 using MusicOrganizer.Application.Recovery;
 using MusicOrganizer.Application.Renaming;
@@ -22,6 +23,7 @@ public static class DependencyInjection
         services.AddTransient<TagRecoveryService>();
         services.AddTransient<RollbackRunUseCase>();
         services.AddTransient<RenameEngine>();
+        services.AddTransient<DuplicateFinder>();
         return services;
     }
 }

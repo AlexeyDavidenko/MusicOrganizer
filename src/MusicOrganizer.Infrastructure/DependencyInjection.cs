@@ -1,8 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
+using MusicOrganizer.Application.Deduplication;
 using MusicOrganizer.Application.Journal;
 using MusicOrganizer.Application.Recovery;
 using MusicOrganizer.Application.Renaming;
 using MusicOrganizer.Application.Scanning;
+using MusicOrganizer.Infrastructure.Deduplication;
 using MusicOrganizer.Infrastructure.FileSystem;
 using MusicOrganizer.Infrastructure.Journal;
 using MusicOrganizer.Infrastructure.Renaming;
@@ -27,6 +29,7 @@ public static class DependencyInjection
         services.AddTransient<ITagWriter, Mp3TagWriter>();
         services.AddTransient<IOperationJournal, FileBackupJournal>();
         services.AddTransient<IFileRenamer, FileRenamer>();
+        services.AddTransient<IDuplicateFileInspector, FileContentInspector>();
         return services;
     }
 }
