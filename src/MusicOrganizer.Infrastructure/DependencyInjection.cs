@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddTransient<IOperationJournal, FileBackupJournal>();
         services.AddTransient<IFileRenamer, FileRenamer>();
         services.AddTransient<IDuplicateFileInspector, FileContentInspector>();
+        services.AddTransient<IFileRemover, FileRemover>();
         return services;
     }
 }
