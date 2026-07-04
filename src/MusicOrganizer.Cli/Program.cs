@@ -175,7 +175,7 @@ findDuplicatesCommand.Arguments.Add(findDuplicatesPathArgument);
 findDuplicatesCommand.SetAction(async (parseResult, cancellationToken) =>
 {
     var path = parseResult.GetValue(findDuplicatesPathArgument)!;
-    var duplicateFinder = host.Services.GetRequiredService<DuplicateFinder>();
+    var duplicateFinder = host.Services.GetRequiredService<IDuplicateFinder>();
 
     var groups = await duplicateFinder.FindAsync(path, cancellationToken);
     var exactGroups = groups.Where(g => g.Kind == DuplicateMatchKind.Exact).ToList();
@@ -211,7 +211,59 @@ findDuplicatesCommand.SetAction(async (parseResult, cancellationToken) =>
 
 static string FormatBytes(long bytes) => (bytes / 1024.0 / 1024.0).ToString("0.00", CultureInfo.InvariantCulture) + " MB";
 
-var runIdArgument = new Argument<Guid>("run-id") { Description = "Run id printed by 'recover-tags --apply' or 'rename --apply'" };
+var removeDuplicatesPathArgument = new Argument<string>("path") { Description = "Root folder to scan for MP3 files" };
+removeDuplicatesPathArgument.Validators.Add(result =>
+{
+    var path = result.GetValueOrDefault<string>();
+    if (path is null || !Directory.Exists(path))
+    {
+        result.AddError($"Folder not found: {path}");
+    }
+});
+
+var removeDuplicatesApplyOption = new Option<bool>("--apply") { Description = "Actually delete files (default is dry-run: report only)" };
+
+var removeDuplicatesCommand = new Command("remove-duplicates", "Delete exact-duplicate files, keeping the one with the shortest path in each group");
+removeDuplicatesCommand.Arguments.Add(removeDuplicatesPathArgument);
+removeDuplicatesCommand.Options.Add(removeDuplicatesApplyOption);
+removeDuplicatesCommand.SetAction(async (parseResult, cancellationToken) =>
+{
+    var path = parseResult.GetValue(removeDuplicatesPathArgument)!;
+    var apply = parseResult.GetValue(removeDuplicatesApplyOption);
+    var runId = Guid.NewGuid();
+    var removalService = host.Services.GetRequiredService<DuplicateRemovalService>();
+
+    var total = 0;
+    var removed = 0;
+    var failed = 0;
+
+    await foreach (var outcome in removalService.RemoveAsync(path, runId, dryRun: !apply, cancellationToken))
+    {
+        total++;
+        if (outcome.Error is not null)
+        {
+            failed++;
+            Console.WriteLine($"[ERROR]        {outcome.FilePath} — {outcome.Error}");
+        }
+        else
+        {
+            removed++;
+            var verb = apply ? "REMOVED" : "WOULD REMOVE";
+            Console.WriteLine($"[{verb}] {outcome.FilePath} (keeping {outcome.KeptFilePath})");
+        }
+    }
+
+    Console.WriteLine($"Processed {total} duplicate file(s): {removed} removed, {failed} error(s).");
+    Console.WriteLine("Tag-match groups (matching tags, different content) are never removed automatically — review with 'find-duplicates'.");
+    if (apply && removed > 0)
+    {
+        Console.WriteLine($"Run id (use with 'rollback' to undo): {runId}");
+    }
+
+    return failed == 0 ? 0 : 1;
+});
+
+var runIdArgument = new Argument<Guid>("run-id") { Description = "Run id printed by 'recover-tags --apply', 'rename --apply', or 'remove-duplicates --apply'" };
 
 var rollbackCommand = new Command("rollback", "Restore files backed up during a previous run");
 rollbackCommand.Arguments.Add(runIdArgument);
@@ -237,6 +289,7 @@ rootCommand.Subcommands.Add(scanCommand);
 rootCommand.Subcommands.Add(recoverTagsCommand);
 rootCommand.Subcommands.Add(renameCommand);
 rootCommand.Subcommands.Add(findDuplicatesCommand);
+rootCommand.Subcommands.Add(removeDuplicatesCommand);
 rootCommand.Subcommands.Add(rollbackCommand);
 
 return await rootCommand.Parse(args).InvokeAsync();

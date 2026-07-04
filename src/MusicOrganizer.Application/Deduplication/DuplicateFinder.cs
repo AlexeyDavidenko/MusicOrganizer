@@ -8,7 +8,7 @@ namespace MusicOrganizer.Application.Deduplication;
 /// Use case: finds duplicate audio files under a root folder, both by exact content match and by
 /// matching Artist/Title tags on files with different content.
 /// </summary>
-public sealed partial class DuplicateFinder
+public sealed partial class DuplicateFinder : IDuplicateFinder
 {
     private readonly IFileSystemScanner _fileSystemScanner;
     private readonly IAudioTagReader _audioTagReader;
