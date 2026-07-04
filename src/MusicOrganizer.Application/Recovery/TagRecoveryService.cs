@@ -2,12 +2,14 @@ using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using MusicOrganizer.Application.Journal;
 using MusicOrganizer.Application.Scanning;
+using MusicOrganizer.Domain;
 using MusicOrganizer.Domain.TagRecovery;
 
 namespace MusicOrganizer.Application.Recovery;
 
 /// <summary>
-/// Use case: recovers missing tags for every audio file found under a root folder.
+/// Use case: recovers missing tags for every audio file found under a root folder, by running
+/// each <see cref="ITagRecoverySource"/> in priority order (registration order in DI).
 /// </summary>
 public sealed partial class TagRecoveryService
 {
@@ -17,6 +19,7 @@ public sealed partial class TagRecoveryService
     private readonly IAudioTagReader _audioTagReader;
     private readonly ITagWriter _tagWriter;
     private readonly IOperationJournal _journal;
+    private readonly IReadOnlyList<ITagRecoverySource> _sources;
     private readonly ILogger<TagRecoveryService> _logger;
 
     /// <summary>
@@ -27,12 +30,14 @@ public sealed partial class TagRecoveryService
         IAudioTagReader audioTagReader,
         ITagWriter tagWriter,
         IOperationJournal journal,
+        IEnumerable<ITagRecoverySource> sources,
         ILogger<TagRecoveryService> logger)
     {
         _fileSystemScanner = fileSystemScanner;
         _audioTagReader = audioTagReader;
         _tagWriter = tagWriter;
         _journal = journal;
+        _sources = sources.ToArray();
         _logger = logger;
     }
 
@@ -62,8 +67,7 @@ public sealed partial class TagRecoveryService
                 continue;
             }
 
-            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(filePath);
-            var proposal = FilenameTagRecovery.Propose(fileNameWithoutExtension, scanEntry.Tags!);
+            var proposal = Propose(filePath, rootPath, scanEntry.Tags!);
 
             if (proposal.RecoveredFields.Count == 0)
             {
@@ -95,6 +99,21 @@ public sealed partial class TagRecoveryService
         }
 
         LogRecoveryFinished(rootPath);
+    }
+
+    private TagRecoveryProposal Propose(string filePath, string rootPath, AudioTags tags)
+    {
+        var merged = tags;
+        var recoveredFields = new List<string>();
+
+        foreach (var source in _sources)
+        {
+            var proposal = source.Propose(filePath, rootPath, merged);
+            merged = proposal.MergedTags;
+            recoveredFields.AddRange(proposal.RecoveredFields);
+        }
+
+        return new TagRecoveryProposal(merged, recoveredFields);
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Starting tag recovery of {RootPath} (dryRun={DryRun})")]
