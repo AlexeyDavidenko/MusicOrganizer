@@ -10,16 +10,17 @@
 Реализовано:
 
 - Сканирование коллекции и чтение ID3-тегов (`scan`)
-- Восстановление отсутствующих Artist/Title из имени файла (`recover-tags`)
+- Восстановление отсутствующих Artist/Title из имени файла и структуры папок (`recover-tags`)
 - Переименование файлов по шаблону `Artist-Title.mp3` (`rename`)
 - Поиск дубликатов — точное совпадение по содержимому и вероятностное по тегам (`find-duplicates`)
+- Удаление точных дубликатов с сохранением файла с самым коротким путём (`remove-duplicates`)
 - Dry Run, Transaction Log и откат (`rollback`) для всех мутирующих операций
 
 В планах (см. `docs/TODO.md` — локальный, не в этом репозитории):
 
-- Восстановление тегов из структуры папок и других источников
+- Дополнительные источники восстановления тегов (эвристики, ручной ввод)
 - Определение и исправление некорректных кодировок
-- Организация структуры коллекции (Artist/Album/Track), удаление дубликатов, отчёты
+- Организация структуры коллекции (Artist/Album/Track), отчёты
 
 ## Технологии
 
@@ -73,6 +74,10 @@ dotnet run --project src/MusicOrganizer.Cli -- rollback <run-id>
 
 # Поиск дубликатов (read-only)
 dotnet run --project src/MusicOrganizer.Cli -- find-duplicates /path/to/music
+
+# Удаление точных дубликатов: dry-run по умолчанию, --apply — реальное удаление
+dotnet run --project src/MusicOrganizer.Cli -- remove-duplicates /path/to/music
+dotnet run --project src/MusicOrganizer.Cli -- remove-duplicates /path/to/music --apply
 ```
 
 Ни одна ошибка на отдельном файле не прерывает обработку остальной коллекции.
@@ -96,9 +101,9 @@ Linux/Windows/macOS при каждом PR.
 
 ## Статус проекта
 
-Активная разработка: 4 команды реализованы (`scan`, `recover-tags`, `rename`, `find-duplicates`)
-плюс общий Journal/Rollback, 51 тест, CI/CD пайплайн с автосборкой Docker-образа и релизами по
-тегам.
+Активная разработка: 5 команд реализовано (`scan`, `recover-tags`, `rename`, `find-duplicates`,
+`remove-duplicates`) плюс общий Journal/Rollback, 65 тестов, CI/CD пайплайн с автосборкой
+Docker-образа и релизами по тегам.
 
 ## Лицензия
 
