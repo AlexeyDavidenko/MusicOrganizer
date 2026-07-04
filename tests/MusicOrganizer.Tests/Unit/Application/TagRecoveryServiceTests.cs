@@ -14,6 +14,30 @@ public class TagRecoveryServiceTests
 {
     private const string FilePath = "Some Artist - Some Title.mp3";
 
+    private static readonly ITagRecoverySource[] DefaultSources =
+    [
+        new FakeTagRecoverySource(current =>
+        {
+            var recovered = new List<string>();
+            var artist = current.Artist;
+            var title = current.Title;
+
+            if (artist is null)
+            {
+                artist = "Some Artist";
+                recovered.Add("Artist");
+            }
+
+            if (title is null)
+            {
+                title = "Some Title";
+                recovered.Add("Title");
+            }
+
+            return new TagRecoveryProposal(current with { Artist = artist, Title = title }, recovered);
+        }),
+    ];
+
     [Fact]
     public async Task RecoverAsync_DoesNotWriteOrJournal_WhenDryRun()
     {
@@ -21,7 +45,7 @@ public class TagRecoveryServiceTests
         var reader = new FakeAudioTagReader(_ => ScanEntry.Success(FilePath, EmptyTags()));
         var writer = new FakeTagWriter(_ => TagWriteResult.Success(FilePath));
         var journal = new FakeJournal();
-        var sut = new TagRecoveryService(scanner, reader, writer, journal, NullLogger<TagRecoveryService>.Instance);
+        var sut = new TagRecoveryService(scanner, reader, writer, journal, DefaultSources, NullLogger<TagRecoveryService>.Instance);
 
         var outcomes = await CollectAsync(sut.RecoverAsync("root", Guid.NewGuid(), dryRun: true));
 
@@ -44,7 +68,7 @@ public class TagRecoveryServiceTests
             return TagWriteResult.Success(path);
         });
         var journal = new FakeJournal(onRecord: () => callOrder.Add("journal"));
-        var sut = new TagRecoveryService(scanner, reader, writer, journal, NullLogger<TagRecoveryService>.Instance);
+        var sut = new TagRecoveryService(scanner, reader, writer, journal, DefaultSources, NullLogger<TagRecoveryService>.Instance);
 
         var outcomes = await CollectAsync(sut.RecoverAsync("root", Guid.NewGuid(), dryRun: false));
 
@@ -63,13 +87,45 @@ public class TagRecoveryServiceTests
             ? TagWriteResult.Failure(path, "disk full")
             : TagWriteResult.Success(path));
         var journal = new FakeJournal();
-        var sut = new TagRecoveryService(scanner, reader, writer, journal, NullLogger<TagRecoveryService>.Instance);
+        var sut = new TagRecoveryService(scanner, reader, writer, journal, DefaultSources, NullLogger<TagRecoveryService>.Instance);
 
         var outcomes = await CollectAsync(sut.RecoverAsync("root", Guid.NewGuid(), dryRun: false));
 
         outcomes.Should().HaveCount(2);
         outcomes[0].Error.Should().Be("disk full");
         outcomes[1].Applied.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RecoverAsync_RunsSourcesInOrder_SoALaterSourceOnlyFillsWhatAnEarlierOneLeftMissing()
+    {
+        var scanner = new FakeFileSystemScanner([FilePath]);
+        var reader = new FakeAudioTagReader(_ => ScanEntry.Success(FilePath, EmptyTags()));
+        var writer = new FakeTagWriter(_ => TagWriteResult.Success(FilePath));
+        var journal = new FakeJournal();
+
+        var firstSource = new FakeTagRecoverySource(current =>
+            new TagRecoveryProposal(current with { Artist = "First Artist" }, ["Artist"]));
+        var secondSource = new FakeTagRecoverySource(current =>
+        {
+            if (current.Artist is not null)
+            {
+                // Would overwrite if not for chain ordering - must not happen.
+                return new TagRecoveryProposal(current with { Artist = "Second Artist" }, ["Artist"]);
+            }
+
+            return new TagRecoveryProposal(current with { Title = "Second Title" }, ["Title"]);
+        });
+
+        var sut = new TagRecoveryService(
+            scanner, reader, writer, journal,
+            [firstSource, secondSource],
+            NullLogger<TagRecoveryService>.Instance);
+
+        var outcomes = await CollectAsync(sut.RecoverAsync("root", Guid.NewGuid(), dryRun: true));
+
+        outcomes.Should().ContainSingle();
+        outcomes[0].RecoveredFields.Should().Contain("Artist");
     }
 
     private static AudioTags EmptyTags() => new(Title: null, Artist: null, Album: null, Year: null, TrackNumber: null, Genre: null);
@@ -115,6 +171,11 @@ public class TagRecoveryServiceTests
             CallCount++;
             return Task.FromResult(factory(filePath));
         }
+    }
+
+    private sealed class FakeTagRecoverySource(Func<AudioTags, TagRecoveryProposal> propose) : ITagRecoverySource
+    {
+        public TagRecoveryProposal Propose(string filePath, string rootPath, AudioTags current) => propose(current);
     }
 
     private sealed class FakeJournal(Action? onRecord = null) : IOperationJournal

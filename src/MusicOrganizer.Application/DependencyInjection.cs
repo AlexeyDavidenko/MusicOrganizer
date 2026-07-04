@@ -4,6 +4,7 @@ using MusicOrganizer.Application.Journal;
 using MusicOrganizer.Application.Recovery;
 using MusicOrganizer.Application.Renaming;
 using MusicOrganizer.Application.Scanning;
+using MusicOrganizer.Domain.TagRecovery;
 
 namespace MusicOrganizer.Application;
 
@@ -20,6 +21,10 @@ public static class DependencyInjection
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         services.AddTransient<CollectionScanner>();
+        // Order matters: registration order is the recovery priority chain (TAG RECOVERY in
+        // PROMPT.md) - Filename (level 2) before folder structure (levels 3-5).
+        services.AddTransient<ITagRecoverySource, FilenameTagRecoverySource>();
+        services.AddTransient<ITagRecoverySource, FolderStructureTagRecoverySource>();
         services.AddTransient<TagRecoveryService>();
         services.AddTransient<RollbackRunUseCase>();
         services.AddTransient<RenameEngine>();
