@@ -46,11 +46,15 @@ public sealed partial class RenameEngine
     /// <param name="rootPath">Root folder to scan.</param>
     /// <param name="runId">Identifier for this rename run, used for journaling.</param>
     /// <param name="dryRun">When true, no files are renamed and nothing is journaled.</param>
+    /// <param name="transliterate">When true, Cyrillic Artist/Title text is transliterated to
+    /// Latin (BGN/PCGN, see <see cref="CyrillicTransliterator"/>) before building the file name.
+    /// Default behavior (false) keeps the original alphabet, per ADR-0003.</param>
     /// <param name="cancellationToken">Token used to stop the run early.</param>
     public async IAsyncEnumerable<RenameOutcome> RenameAsync(
         string rootPath,
         Guid runId,
         bool dryRun,
+        bool transliterate,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         LogRenameStarted(rootPath, dryRun);
@@ -70,6 +74,12 @@ public sealed partial class RenameEngine
             {
                 yield return new RenameOutcome { OriginalPath = filePath };
                 continue;
+            }
+
+            if (transliterate)
+            {
+                artist = CyrillicTransliterator.Transliterate(artist);
+                title = CyrillicTransliterator.Transliterate(title);
             }
 
             var directory = Path.GetDirectoryName(filePath) ?? string.Empty;

@@ -25,7 +25,7 @@ public class RenameEngineTests
         var journal = new FakeJournal();
         var sut = new RenameEngine(scanner, reader, renamer, journal, NullLogger<RenameEngine>.Instance);
 
-        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: true));
+        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: true, transliterate: false));
 
         outcomes.Should().ContainSingle();
         outcomes[0].Applied.Should().BeFalse();
@@ -46,7 +46,7 @@ public class RenameEngineTests
         var journal = new FakeJournal(onRecordMove: () => callOrder.Add("journal"));
         var sut = new RenameEngine(scanner, reader, renamer, journal, NullLogger<RenameEngine>.Instance);
 
-        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: false));
+        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: false, transliterate: false));
 
         outcomes.Should().ContainSingle();
         outcomes[0].Applied.Should().BeTrue();
@@ -62,7 +62,7 @@ public class RenameEngineTests
         var journal = new FakeJournal();
         var sut = new RenameEngine(scanner, reader, renamer, journal, NullLogger<RenameEngine>.Instance);
 
-        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: false));
+        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: false, transliterate: false));
 
         outcomes.Should().ContainSingle();
         outcomes[0].Error.Should().BeNull();
@@ -79,7 +79,7 @@ public class RenameEngineTests
         var journal = new FakeJournal();
         var sut = new RenameEngine(scanner, reader, renamer, journal, NullLogger<RenameEngine>.Instance);
 
-        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: true));
+        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: true, transliterate: false));
 
         outcomes.Should().ContainSingle();
         outcomes[0].ProposedPath.Should().Be(Path.Combine(RootPath, "Artist-Title (1).mp3"));
@@ -100,11 +100,41 @@ public class RenameEngineTests
         var journal = new FakeJournal();
         var sut = new RenameEngine(scanner, reader, renamer, journal, NullLogger<RenameEngine>.Instance);
 
-        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: false));
+        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: false, transliterate: false));
 
         outcomes.Should().HaveCount(2);
         outcomes[0].Error.Should().Be("disk full");
         outcomes[1].Applied.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RenameAsync_TransliteratesCyrillicArtistAndTitle_WhenTransliterateIsTrue()
+    {
+        var scanner = new FakeFileSystemScanner([OriginalPath]);
+        var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, TagsFor("Максим Фадеев", "Лети За Мной")));
+        var renamer = new FakeFileRenamer(exists: _ => false);
+        var journal = new FakeJournal();
+        var sut = new RenameEngine(scanner, reader, renamer, journal, NullLogger<RenameEngine>.Instance);
+
+        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: true, transliterate: true));
+
+        outcomes.Should().ContainSingle();
+        outcomes[0].ProposedPath.Should().Be(Path.Combine(RootPath, "Maksim_Fadeyev-Leti_Za_Mnoy.mp3"));
+    }
+
+    [Fact]
+    public async Task RenameAsync_KeepsOriginalAlphabet_WhenTransliterateIsFalse()
+    {
+        var scanner = new FakeFileSystemScanner([OriginalPath]);
+        var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, TagsFor("Максим Фадеев", "Лети За Мной")));
+        var renamer = new FakeFileRenamer(exists: _ => false);
+        var journal = new FakeJournal();
+        var sut = new RenameEngine(scanner, reader, renamer, journal, NullLogger<RenameEngine>.Instance);
+
+        var outcomes = await CollectAsync(sut.RenameAsync(RootPath, Guid.NewGuid(), dryRun: true, transliterate: false));
+
+        outcomes.Should().ContainSingle();
+        outcomes[0].ProposedPath.Should().Be(Path.Combine(RootPath, "Максим_Фадеев-Лети_За_Мной.mp3"));
     }
 
     private static AudioTags TagsFor(string? artist, string? title) =>

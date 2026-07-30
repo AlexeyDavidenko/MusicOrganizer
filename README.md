@@ -11,7 +11,8 @@
 
 - Сканирование коллекции и чтение ID3-тегов (`scan`)
 - Восстановление отсутствующих Artist/Title из имени файла и структуры папок (`recover-tags`)
-- Переименование файлов по шаблону `Artist-Title.mp3` (`rename`)
+- Переименование файлов по шаблону `Artist-Title.mp3` (`rename`), опционально с транслитерацией
+  кириллицы в латиницу (`--transliterate`, BGN/PCGN)
 - Поиск дубликатов — точное совпадение по содержимому и вероятностное по тегам (`find-duplicates`)
 - Удаление точных дубликатов с сохранением файла с самым коротким путём (`remove-duplicates`)
 - Dry Run, Transaction Log и откат (`rollback`) для всех мутирующих операций
@@ -72,6 +73,9 @@ dotnet run --project src/MusicOrganizer.Cli -- recover-tags /path/to/music --app
 # Переименование по шаблону Artist-Title.mp3
 dotnet run --project src/MusicOrganizer.Cli -- rename /path/to/music --apply
 
+# То же самое, но с транслитерацией кириллицы в латиницу (BGN/PCGN)
+dotnet run --project src/MusicOrganizer.Cli -- rename /path/to/music --apply --transliterate
+
 # Откат последней применённой операции (recover-tags/rename с --apply печатают run id)
 dotnet run --project src/MusicOrganizer.Cli -- rollback <run-id>
 
@@ -105,7 +109,7 @@ Linux/Windows/macOS при каждом PR.
 ## Статус проекта
 
 Активная разработка: 5 команд реализовано (`scan`, `recover-tags`, `rename`, `find-duplicates`,
-`remove-duplicates`) плюс общий Journal/Rollback, 88 тестов, CI/CD пайплайн с автосборкой
+`remove-duplicates`) плюс общий Journal/Rollback, 99 тестов, CI/CD пайплайн с автосборкой
 Docker-образа и релизами по тегам.
 
 ## Лицензия
