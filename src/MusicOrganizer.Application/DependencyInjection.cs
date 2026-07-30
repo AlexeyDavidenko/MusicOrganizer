@@ -22,9 +22,12 @@ public static class DependencyInjection
     {
         services.AddTransient<CollectionScanner>();
         // Order matters: registration order is the recovery priority chain (TAG RECOVERY in
-        // PROMPT.md) - Filename (level 2) before folder structure (levels 3-5).
+        // PROMPT.md) - Filename (2) -> Folder structure (3-5) -> Collection statistics (6) ->
+        // Heuristics (7).
         services.AddTransient<ITagRecoverySource, FilenameTagRecoverySource>();
         services.AddTransient<ITagRecoverySource, FolderStructureTagRecoverySource>();
+        services.AddTransient<ITagRecoverySource, CollectionStatisticsTagRecoverySource>();
+        services.AddTransient<ITagRecoverySource, HeuristicFilenameTagRecoverySource>();
         services.AddTransient<TagRecoveryService>();
         services.AddTransient<RollbackRunUseCase>();
         services.AddTransient<RenameEngine>();

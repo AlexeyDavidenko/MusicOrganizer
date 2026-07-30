@@ -128,6 +128,81 @@ public class TagRecoveryServiceTests
         outcomes[0].RecoveredFields.Should().Contain("Artist");
     }
 
+    [Fact]
+    public async Task RecoverAsync_FlagsNeedsManualReview_WhenNoSourceCanFillArtistOrTitle()
+    {
+        var scanner = new FakeFileSystemScanner([FilePath]);
+        var reader = new FakeAudioTagReader(_ => ScanEntry.Success(FilePath, EmptyTags()));
+        var writer = new FakeTagWriter(_ => TagWriteResult.Success(FilePath));
+        var journal = new FakeJournal();
+        var noopSource = new FakeTagRecoverySource(current => new TagRecoveryProposal(current, []));
+        var sut = new TagRecoveryService(scanner, reader, writer, journal, [noopSource], NullLogger<TagRecoveryService>.Instance);
+
+        var outcomes = await CollectAsync(sut.RecoverAsync("root", Guid.NewGuid(), dryRun: true));
+
+        outcomes.Should().ContainSingle();
+        outcomes[0].NeedsManualReview.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RecoverAsync_DoesNotFlagNeedsManualReview_WhenTagsAreAlreadyComplete()
+    {
+        var scanner = new FakeFileSystemScanner([FilePath]);
+        var fullTags = EmptyTags() with { Artist = "Artist", Title = "Title" };
+        var reader = new FakeAudioTagReader(_ => ScanEntry.Success(FilePath, fullTags));
+        var writer = new FakeTagWriter(_ => TagWriteResult.Success(FilePath));
+        var journal = new FakeJournal();
+        var noopSource = new FakeTagRecoverySource(current => new TagRecoveryProposal(current, []));
+        var sut = new TagRecoveryService(scanner, reader, writer, journal, [noopSource], NullLogger<TagRecoveryService>.Instance);
+
+        var outcomes = await CollectAsync(sut.RecoverAsync("root", Guid.NewGuid(), dryRun: true));
+
+        outcomes.Should().ContainSingle();
+        outcomes[0].NeedsManualReview.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RecoverAsync_DoesNotFlagNeedsManualReview_WhenFileErrored()
+    {
+        var scanner = new FakeFileSystemScanner([FilePath]);
+        var reader = new FakeAudioTagReader(_ => ScanEntry.Failure(FilePath, "corrupt"));
+        var writer = new FakeTagWriter(_ => TagWriteResult.Success(FilePath));
+        var journal = new FakeJournal();
+        var sut = new TagRecoveryService(scanner, reader, writer, journal, DefaultSources, NullLogger<TagRecoveryService>.Instance);
+
+        var outcomes = await CollectAsync(sut.RecoverAsync("root", Guid.NewGuid(), dryRun: true));
+
+        outcomes.Should().ContainSingle();
+        outcomes[0].Error.Should().Be("corrupt");
+        outcomes[0].NeedsManualReview.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RecoverAsync_BuildsFolderStatisticsContext_FromAllFilesInTheRun()
+    {
+        var folder = Path.Combine("root", "folder");
+        var pathA = Path.Combine(folder, "a.mp3");
+        var pathB = Path.Combine(folder, "b.mp3");
+        var pathC = Path.Combine(folder, "c.mp3");
+        var tagsByPath = new Dictionary<string, AudioTags>
+        {
+            [pathA] = EmptyTags() with { Artist = "Consensus Artist" },
+            [pathB] = EmptyTags() with { Artist = "Consensus Artist" },
+            [pathC] = EmptyTags(),
+        };
+        var scanner = new FakeFileSystemScanner([pathA, pathB, pathC]);
+        var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, tagsByPath[path]));
+        var writer = new FakeTagWriter(_ => TagWriteResult.Success(string.Empty));
+        var journal = new FakeJournal();
+        var recordingSource = new FakeTagRecoverySource(current => new TagRecoveryProposal(current, []));
+        var sut = new TagRecoveryService(scanner, reader, writer, journal, [recordingSource], NullLogger<TagRecoveryService>.Instance);
+
+        await CollectAsync(sut.RecoverAsync("root", Guid.NewGuid(), dryRun: true));
+
+        recordingSource.LastContext.Should().NotBeNull();
+        recordingSource.LastContext!.FolderStatistics[folder].Artist.Should().Be("Consensus Artist");
+    }
+
     private static AudioTags EmptyTags() => new(Title: null, Artist: null, Album: null, Year: null, TrackNumber: null, Genre: null);
 
     private static async Task<List<TagRecoveryOutcome>> CollectAsync(IAsyncEnumerable<TagRecoveryOutcome> source)
@@ -175,7 +250,13 @@ public class TagRecoveryServiceTests
 
     private sealed class FakeTagRecoverySource(Func<AudioTags, TagRecoveryProposal> propose) : ITagRecoverySource
     {
-        public TagRecoveryProposal Propose(string filePath, string rootPath, AudioTags current) => propose(current);
+        public TagRecoveryContext? LastContext { get; private set; }
+
+        public TagRecoveryProposal Propose(string filePath, string rootPath, AudioTags current, TagRecoveryContext context)
+        {
+            LastContext = context;
+            return propose(current);
+        }
     }
 
     private sealed class FakeJournal(Action? onRecord = null) : IOperationJournal

@@ -17,6 +17,13 @@ public sealed record TagRecoveryOutcome
     /// <summary>Reason processing failed, when it did.</summary>
     public string? Error { get; init; }
 
+    /// <summary>
+    /// True when, after every source in the chain has run, the file is still missing Artist or
+    /// Title (TAG RECOVERY level 8, Manual Review) — reporting only, never set when
+    /// <see cref="Error"/> is set.
+    /// </summary>
+    public bool NeedsManualReview { get; init; }
+
     /// <summary>True when at least one field was recovered (or would be, in a dry run).</summary>
     public bool HasRecovery => RecoveredFields.Count > 0;
 }
