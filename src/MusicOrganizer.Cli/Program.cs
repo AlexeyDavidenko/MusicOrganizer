@@ -135,14 +135,17 @@ renamePathArgument.Validators.Add(result =>
 });
 
 var renameApplyOption = new Option<bool>("--apply") { Description = "Actually rename files (default is dry-run: report only)" };
+var renameTransliterateOption = new Option<bool>("--transliterate") { Description = "Transliterate Cyrillic Artist/Title to Latin (BGN/PCGN) before building the file name" };
 
 var renameCommand = new Command("rename", "Rename files to 'Artist-Title.mp3' using their tags");
 renameCommand.Arguments.Add(renamePathArgument);
 renameCommand.Options.Add(renameApplyOption);
+renameCommand.Options.Add(renameTransliterateOption);
 renameCommand.SetAction(async (parseResult, cancellationToken) =>
 {
     var path = parseResult.GetValue(renamePathArgument)!;
     var apply = parseResult.GetValue(renameApplyOption);
+    var transliterate = parseResult.GetValue(renameTransliterateOption);
     var runId = Guid.NewGuid();
     var renameEngine = host.Services.GetRequiredService<RenameEngine>();
 
@@ -150,7 +153,7 @@ renameCommand.SetAction(async (parseResult, cancellationToken) =>
     var renamed = 0;
     var failed = 0;
 
-    await foreach (var outcome in renameEngine.RenameAsync(path, runId, dryRun: !apply, cancellationToken))
+    await foreach (var outcome in renameEngine.RenameAsync(path, runId, dryRun: !apply, transliterate, cancellationToken))
     {
         total++;
         if (outcome.Error is not null)
