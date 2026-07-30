@@ -14,5 +14,7 @@ public interface ITagRecoverySource
     /// <param name="rootPath">Root folder the current scan/recovery run started from.</param>
     /// <param name="current">Tags as currently known (possibly already partially recovered by an
     /// earlier, higher-priority source in the chain).</param>
-    public TagRecoveryProposal Propose(string filePath, string rootPath, AudioTags current);
+    /// <param name="context">Precomputed, run-wide context (e.g. folder statistics). Sources that
+    /// don't need it ignore it.</param>
+    public TagRecoveryProposal Propose(string filePath, string rootPath, AudioTags current, TagRecoveryContext context);
 }

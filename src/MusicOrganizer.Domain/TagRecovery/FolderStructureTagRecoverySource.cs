@@ -7,6 +7,6 @@ namespace MusicOrganizer.Domain.TagRecovery;
 public sealed class FolderStructureTagRecoverySource : ITagRecoverySource
 {
     /// <inheritdoc />
-    public TagRecoveryProposal Propose(string filePath, string rootPath, AudioTags current) =>
+    public TagRecoveryProposal Propose(string filePath, string rootPath, AudioTags current, TagRecoveryContext context) =>
         FolderStructureTagRecovery.Propose(filePath, rootPath, current);
 }

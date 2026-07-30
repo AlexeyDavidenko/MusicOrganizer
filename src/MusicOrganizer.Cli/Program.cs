@@ -82,6 +82,7 @@ recoverTagsCommand.SetAction(async (parseResult, cancellationToken) =>
     var total = 0;
     var recovered = 0;
     var failed = 0;
+    var needsManualReview = new List<string>();
 
     await foreach (var outcome in recoveryService.RecoverAsync(path, runId, dryRun: !apply, cancellationToken))
     {
@@ -98,9 +99,23 @@ recoverTagsCommand.SetAction(async (parseResult, cancellationToken) =>
             var verb = apply ? "RECOVERED" : "WOULD RECOVER";
             Console.WriteLine($"[{verb}] {outcome.FilePath} — {fields}");
         }
+
+        if (outcome.NeedsManualReview)
+        {
+            needsManualReview.Add(outcome.FilePath);
+        }
     }
 
-    Console.WriteLine($"Scanned {total} file(s): {recovered} recovered, {failed} error(s).");
+    if (needsManualReview.Count > 0)
+    {
+        Console.WriteLine($"[MANUAL REVIEW NEEDED] ({needsManualReview.Count} file(s) - no source could recover tags)");
+        foreach (var filePath in needsManualReview)
+        {
+            Console.WriteLine($"  {filePath}");
+        }
+    }
+
+    Console.WriteLine($"Scanned {total} file(s): {recovered} recovered, {failed} error(s), {needsManualReview.Count} need manual review.");
     if (apply && recovered > 0)
     {
         Console.WriteLine($"Run id (use with 'rollback' to undo): {runId}");
