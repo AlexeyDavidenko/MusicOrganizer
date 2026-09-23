@@ -178,6 +178,57 @@ renameCommand.SetAction(async (parseResult, cancellationToken) =>
     return failed == 0 ? 0 : 1;
 });
 
+var organizePathArgument = new Argument<string>("path") { Description = "Root folder to scan for MP3 files" };
+organizePathArgument.Validators.Add(result =>
+{
+    var path = result.GetValueOrDefault<string>();
+    if (path is null || !Directory.Exists(path))
+    {
+        result.AddError($"Folder not found: {path}");
+    }
+});
+
+var organizeApplyOption = new Option<bool>("--apply") { Description = "Actually move files (default is dry-run: report only)" };
+
+var organizeCommand = new Command("organize", "Move files into an Artist/Album folder tree under the root (falls back to Artist-only when Album is unknown); file names are left as-is");
+organizeCommand.Arguments.Add(organizePathArgument);
+organizeCommand.Options.Add(organizeApplyOption);
+organizeCommand.SetAction(async (parseResult, cancellationToken) =>
+{
+    var path = parseResult.GetValue(organizePathArgument)!;
+    var apply = parseResult.GetValue(organizeApplyOption);
+    var runId = Guid.NewGuid();
+    var organizeEngine = host.Services.GetRequiredService<OrganizeEngine>();
+
+    var total = 0;
+    var moved = 0;
+    var failed = 0;
+
+    await foreach (var outcome in organizeEngine.OrganizeAsync(path, runId, dryRun: !apply, cancellationToken))
+    {
+        total++;
+        if (outcome.Error is not null)
+        {
+            failed++;
+            Console.WriteLine($"[ERROR]        {outcome.OriginalPath} — {outcome.Error}");
+        }
+        else if (outcome.NeedsRename)
+        {
+            moved++;
+            var verb = apply ? "MOVED" : "WOULD MOVE";
+            Console.WriteLine($"[{verb}] {outcome.OriginalPath} -> {outcome.ProposedPath}");
+        }
+    }
+
+    Console.WriteLine($"Scanned {total} file(s): {moved} moved, {failed} error(s).");
+    if (apply && moved > 0)
+    {
+        Console.WriteLine($"Run id (use with 'rollback' to undo): {runId}");
+    }
+
+    return failed == 0 ? 0 : 1;
+});
+
 var findDuplicatesPathArgument = new Argument<string>("path") { Description = "Root folder to scan for MP3 files" };
 findDuplicatesPathArgument.Validators.Add(result =>
 {
@@ -281,7 +332,7 @@ removeDuplicatesCommand.SetAction(async (parseResult, cancellationToken) =>
     return failed == 0 ? 0 : 1;
 });
 
-var runIdArgument = new Argument<Guid>("run-id") { Description = "Run id printed by 'recover-tags --apply', 'rename --apply', or 'remove-duplicates --apply'" };
+var runIdArgument = new Argument<Guid>("run-id") { Description = "Run id printed by 'recover-tags --apply', 'rename --apply', 'organize --apply', or 'remove-duplicates --apply'" };
 
 var rollbackCommand = new Command("rollback", "Restore files backed up during a previous run");
 rollbackCommand.Arguments.Add(runIdArgument);
@@ -306,6 +357,7 @@ var rootCommand = new RootCommand("MusicOrganizer - professional MP3 collection 
 rootCommand.Subcommands.Add(scanCommand);
 rootCommand.Subcommands.Add(recoverTagsCommand);
 rootCommand.Subcommands.Add(renameCommand);
+rootCommand.Subcommands.Add(organizeCommand);
 rootCommand.Subcommands.Add(findDuplicatesCommand);
 rootCommand.Subcommands.Add(removeDuplicatesCommand);
 rootCommand.Subcommands.Add(rollbackCommand);

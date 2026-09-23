@@ -5,9 +5,10 @@ using MusicOrganizer.Domain.Renaming;
 namespace MusicOrganizer.Infrastructure.Renaming;
 
 /// <summary>
-/// Renames files on the local file system. Expected failures (locked file, permissions) are
-/// reported as a failed <see cref="RenameResult"/> instead of throwing, so processing a large
-/// collection can continue past a single bad file.
+/// Renames (or moves - the two are the same file system operation) files on the local file
+/// system, creating the destination folder first if needed. Expected failures (locked file,
+/// permissions) are reported as a failed <see cref="RenameResult"/> instead of throwing, so
+/// processing a large collection can continue past a single bad file.
 /// </summary>
 public sealed partial class FileRenamer : IFileRenamer
 {
@@ -35,6 +36,12 @@ public sealed partial class FileRenamer : IFileRenamer
 
         try
         {
+            var targetDirectory = Path.GetDirectoryName(newPath);
+            if (!string.IsNullOrEmpty(targetDirectory))
+            {
+                Directory.CreateDirectory(targetDirectory);
+            }
+
             File.Move(originalPath, newPath);
             return Task.FromResult(RenameResult.Success(originalPath, newPath));
         }

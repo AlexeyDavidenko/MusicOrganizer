@@ -7,28 +7,31 @@ using MusicOrganizer.Domain.Renaming;
 namespace MusicOrganizer.Application.Renaming;
 
 /// <summary>
-/// Use case: renames every audio file found under a root folder according to the default rename
-/// template, resolving name collisions and skipping files without enough tag data to build a name.
+/// Use case: moves every audio file found under a root folder into an Artist/Album folder tree
+/// (falling back to Artist-only when Album is unknown), keeping each file's current name and
+/// resolving name collisions the same way <see cref="RenameEngine"/> does. A file's name is left
+/// for <see cref="RenameEngine"/> to manage - run that first if you also want the
+/// "Artist-Title.mp3" naming convention applied.
 /// </summary>
-public sealed partial class RenameEngine
+public sealed partial class OrganizeEngine
 {
-    private const string OperationType = "rename";
+    private const string OperationType = "organize";
 
     private readonly IFileSystemScanner _fileSystemScanner;
     private readonly IAudioTagReader _audioTagReader;
     private readonly IFileRenamer _fileRenamer;
     private readonly IOperationJournal _journal;
-    private readonly ILogger<RenameEngine> _logger;
+    private readonly ILogger<OrganizeEngine> _logger;
 
     /// <summary>
-    /// Creates a new <see cref="RenameEngine"/>.
+    /// Creates a new <see cref="OrganizeEngine"/>.
     /// </summary>
-    public RenameEngine(
+    public OrganizeEngine(
         IFileSystemScanner fileSystemScanner,
         IAudioTagReader audioTagReader,
         IFileRenamer fileRenamer,
         IOperationJournal journal,
-        ILogger<RenameEngine> logger)
+        ILogger<OrganizeEngine> logger)
     {
         _fileSystemScanner = fileSystemScanner;
         _audioTagReader = audioTagReader;
@@ -39,24 +42,21 @@ public sealed partial class RenameEngine
 
     /// <summary>
     /// Recursively scans <paramref name="rootPath"/> and streams a <see cref="RenameOutcome"/> per
-    /// file found. When <paramref name="dryRun"/> is <see langword="false"/>, a move is recorded
-    /// in the journal before each file is actually renamed.
+    /// file found (its <c>ProposedPath</c> is the target under the Artist/Album tree). When
+    /// <paramref name="dryRun"/> is <see langword="false"/>, a move is recorded in the journal
+    /// before each file is actually relocated.
     /// </summary>
-    /// <param name="rootPath">Root folder to scan.</param>
-    /// <param name="runId">Identifier for this rename run, used for journaling.</param>
-    /// <param name="dryRun">When true, no files are renamed and nothing is journaled.</param>
-    /// <param name="transliterate">When true, Cyrillic Artist/Title text is transliterated to
-    /// Latin (BGN/PCGN, see <see cref="CyrillicTransliterator"/>) before building the file name.
-    /// Default behavior (false) keeps the original alphabet, per ADR-0003.</param>
+    /// <param name="rootPath">Root folder to scan, and the root of the Artist/Album tree files are moved under.</param>
+    /// <param name="runId">Identifier for this organize run, used for journaling.</param>
+    /// <param name="dryRun">When true, no files are moved and nothing is journaled.</param>
     /// <param name="cancellationToken">Token used to stop the run early.</param>
-    public async IAsyncEnumerable<RenameOutcome> RenameAsync(
+    public async IAsyncEnumerable<RenameOutcome> OrganizeAsync(
         string rootPath,
         Guid runId,
         bool dryRun,
-        bool transliterate,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        LogRenameStarted(rootPath, dryRun);
+        LogOrganizeStarted(rootPath, dryRun);
 
         await foreach (var filePath in _fileSystemScanner.EnumerateAudioFilesAsync(rootPath, cancellationToken))
         {
@@ -68,22 +68,14 @@ public sealed partial class RenameEngine
             }
 
             var artist = scanEntry.Tags!.Artist;
-            var title = scanEntry.Tags.Title;
-            if (artist is null || title is null)
+            if (artist is null)
             {
                 yield return new RenameOutcome { OriginalPath = filePath };
                 continue;
             }
 
-            if (transliterate)
-            {
-                artist = CyrillicTransliterator.Transliterate(artist);
-                title = CyrillicTransliterator.Transliterate(title);
-            }
-
-            var directory = Path.GetDirectoryName(filePath) ?? string.Empty;
-            var fileName = DefaultRenameTemplate.BuildFileName(artist, title);
-            var proposedPath = Path.Combine(directory, fileName);
+            var targetDirectory = OrganizationTemplate.BuildTargetDirectory(rootPath, artist, scanEntry.Tags.Album);
+            var proposedPath = Path.Combine(targetDirectory, Path.GetFileName(filePath));
 
             var (resolvedPath, conflictError) = await FileRelocationConflictResolver.ResolveAsync(_fileRenamer, proposedPath, filePath, cancellationToken);
             if (conflictError is not null)
@@ -106,17 +98,17 @@ public sealed partial class RenameEngine
             }
 
             await _journal.RecordMoveAsync(runId, filePath, resolvedPath!, OperationType, cancellationToken);
-            var renameResult = await _fileRenamer.RenameAsync(filePath, resolvedPath!, cancellationToken);
+            var moveResult = await _fileRenamer.RenameAsync(filePath, resolvedPath!, cancellationToken);
 
-            yield return outcome with { Applied = renameResult.Succeeded, Error = renameResult.Error };
+            yield return outcome with { Applied = moveResult.Succeeded, Error = moveResult.Error };
         }
 
-        LogRenameFinished(rootPath);
+        LogOrganizeFinished(rootPath);
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Starting rename of {RootPath} (dryRun={DryRun})")]
-    private partial void LogRenameStarted(string rootPath, bool dryRun);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Starting organize of {RootPath} (dryRun={DryRun})")]
+    private partial void LogOrganizeStarted(string rootPath, bool dryRun);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Finished rename of {RootPath}")]
-    private partial void LogRenameFinished(string rootPath);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Finished organize of {RootPath}")]
+    private partial void LogOrganizeFinished(string rootPath);
 }
