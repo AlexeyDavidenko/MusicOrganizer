@@ -23,6 +23,10 @@ Every operation that touches disk supports **dry-run**, is recorded in a **journ
 - **Organize the collection** into an `Artist/Album` folder tree (falling back to a flat
   `Artist/` folder when Album is unknown), leaving file names untouched — composes with `rename`
   in either order (`organize`).
+- **Detect and correct mis-decoded tag text** — legacy Cyrillic encodings (Windows-1251, CP866)
+  or UTF-8 read as Latin1, and Windows-1252 punctuation read as Latin1 control characters,
+  restored via reversible byte re-decoding with confidence-gated detection; genuinely correct
+  text is left untouched (`fix-encoding`).
 - **Find duplicates** — exact content matches (size + hash) and probable duplicates by matching
   tags (`find-duplicates`, read-only).
 - **Remove exact duplicates**, always keeping the file with the shortest path in each group;
@@ -35,8 +39,7 @@ Every operation that touches disk supports **dry-run**, is recorded in a **journ
 
 ## Non-goals (for now)
 
-Encoding auto-detection (Windows-1251/CP866/etc. — currently delegated to TagLibSharp), file-based
-reports, and audio fingerprinting are not implemented yet. The architecture is designed to add them, along with other
+File-based reports and audio fingerprinting are not implemented yet. The architecture is designed to add them, along with other
 audio formats (FLAC, OGG, AAC, ...) and online metadata sources (MusicBrainz, AcoustID, Discogs,
 Last.fm), without restructuring existing code.
 
@@ -85,6 +88,10 @@ dotnet run --project src/MusicOrganizer.Cli -- scan /path/to/music
 dotnet run --project src/MusicOrganizer.Cli -- recover-tags /path/to/music
 dotnet run --project src/MusicOrganizer.Cli -- recover-tags /path/to/music --apply
 
+# Detect and correct mis-decoded tag text — dry-run by default, --apply to actually write
+dotnet run --project src/MusicOrganizer.Cli -- fix-encoding /path/to/music
+dotnet run --project src/MusicOrganizer.Cli -- fix-encoding /path/to/music --apply
+
 # Rename to Artist-Title.mp3
 dotnet run --project src/MusicOrganizer.Cli -- rename /path/to/music --apply
 
@@ -101,7 +108,7 @@ dotnet run --project src/MusicOrganizer.Cli -- find-duplicates /path/to/music
 dotnet run --project src/MusicOrganizer.Cli -- remove-duplicates /path/to/music
 dotnet run --project src/MusicOrganizer.Cli -- remove-duplicates /path/to/music --apply
 
-# Undo a previous --apply run (recover-tags/rename/organize/remove-duplicates print a run id)
+# Undo a previous --apply run (recover-tags/fix-encoding/rename/organize/remove-duplicates print a run id)
 dotnet run --project src/MusicOrganizer.Cli -- rollback <run-id>
 ```
 
@@ -125,12 +132,12 @@ Linux, Windows, and macOS for every pull request.
 
 ## Project status
 
-Under active development, first release `v0.1.0` published. Implemented: 6 commands (`scan`,
-`recover-tags`, `rename`, `organize`, `find-duplicates`, `remove-duplicates`) plus a shared
-journal/rollback mechanism, all 8 tag recovery levels, resilient scanning (an unreadable folder is
-skipped and logged instead of aborting the run), 110 passing tests, and a CI/CD pipeline that
-builds a multi-arch Docker image and publishes tagged releases with prebuilt binaries. See the
-"Non-goals" section above for what's still missing.
+Under active development, first release `v0.1.0` published. Implemented: 7 commands (`scan`,
+`recover-tags`, `fix-encoding`, `rename`, `organize`, `find-duplicates`, `remove-duplicates`) plus
+a shared journal/rollback mechanism, all 8 tag recovery levels, encoding detection/correction,
+resilient scanning (an unreadable folder is skipped and logged instead of aborting the run), 141
+passing tests, and a CI/CD pipeline that builds a multi-arch Docker image and publishes tagged
+releases with prebuilt binaries. See the "Non-goals" section above for what's still missing.
 
 ## License
 
