@@ -1,58 +1,71 @@
 # MusicOrganizer
 
 [![CI](https://github.com/AlexeyDavidenko/MusicOrganizer/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexeyDavidenko/MusicOrganizer/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/AlexeyDavidenko/MusicOrganizer)](https://github.com/AlexeyDavidenko/MusicOrganizer/releases)
 
-Кроссплатформенное CLI-приложение на .NET 10 для профессионального управления большой музыкальной
-коллекцией MP3 (рассчитано на коллекции от сотен тысяч до миллиона+ файлов).
+A cross-platform .NET 10 CLI for maintaining large MP3 collections — from a few thousand tracks
+up to 1,000,000+ files. It recovers missing tags, renames files consistently, finds and removes
+duplicates, and makes every change safe to undo.
 
-## Возможности
+Every operation that touches disk supports **dry-run**, is recorded in a **journal**, and can be
+**rolled back** — nothing is applied irreversibly by default.
 
-Реализовано:
+## Features
 
-- Сканирование коллекции и чтение ID3-тегов (`scan`)
-- Восстановление отсутствующих Artist/Title из имени файла и структуры папок (`recover-tags`)
-- Переименование файлов по шаблону `Artist-Title.mp3` (`rename`), опционально с транслитерацией
-  кириллицы в латиницу (`--transliterate`, BGN/PCGN)
-- Поиск дубликатов — точное совпадение по содержимому и вероятностное по тегам (`find-duplicates`)
-- Удаление точных дубликатов с сохранением файла с самым коротким путём (`remove-duplicates`)
-- Dry Run, Transaction Log и откат (`rollback`) для всех мутирующих операций
+- **Scan** a collection and read ID3 tags (`scan`).
+- **Recover missing Artist/Title/Album tags** through an 8-level priority chain — ID3, file name
+  parsing, folder structure (Album/Artist/Parent), collection-wide statistics (consensus across
+  sibling files), extended filename heuristics (track numbers, noise suffixes), and a
+  manual-review report for anything no source could resolve (`recover-tags`).
+- **Rename files** to a consistent `Artist-Title.mp3` template, with Unicode normalization,
+  forbidden-character stripping, deterministic collision resolution, and optional Cyrillic → Latin
+  transliteration (`rename`, `--transliterate`, BGN/PCGN).
+- **Find duplicates** — exact content matches (size + hash) and probable duplicates by matching
+  tags (`find-duplicates`, read-only).
+- **Remove exact duplicates**, always keeping the file with the shortest path in each group;
+  tag-only matches are never touched automatically, since they may be legitimate alternate
+  versions (`remove-duplicates`).
+- **Roll back** any previous `--apply` run by its run id, restoring modified or deleted files from
+  the journal (`rollback`).
+- Every mutating command is dry-run by default; per-file errors never abort a run on the rest of
+  the collection.
 
-Восстановление тегов покрывает все 8 источников из спецификации: ID3, имя файла (в т.ч.
-расширенные эвристики — номер трека, шумовые суффиксы), структура папок, консенсус по соседним
-файлам в папке, и отчёт о файлах, которые не удалось разобрать ни одним источником.
+## Non-goals (for now)
 
-В планах (см. `docs/TODO.md` — локальный, не в этом репозитории):
+Encoding auto-detection (Windows-1251/CP866/etc. — currently delegated to TagLibSharp),
+reorganizing files into an `Artist/Album` folder tree, file-based reports, and audio
+fingerprinting are not implemented yet. The architecture is designed to add them, along with other
+audio formats (FLAC, OGG, AAC, ...) and online metadata sources (MusicBrainz, AcoustID, Discogs,
+Last.fm), without restructuring existing code.
 
-- Определение и исправление некорректных кодировок
-- Организация структуры коллекции (Artist/Album/Track), отчёты
-
-## Технологии
+## Technology
 
 .NET 10 · C# · [Generic Host](https://learn.microsoft.com/dotnet/core/extensions/generic-host) ·
 [System.CommandLine](https://github.com/dotnet/command-line-api) ·
 [TagLibSharp](https://github.com/mono/taglib-sharp) · xUnit · FluentAssertions
 
-## Архитектура
+## Architecture
 
-Clean Architecture, шесть проектов:
+Clean Architecture across six projects, with dependencies flowing strictly one way:
 
 ```
 src/
-  MusicOrganizer.Domain/           — сущности, value objects, доменные интерфейсы
-  MusicOrganizer.Application/      — use cases, порты для Infrastructure
-  MusicOrganizer.Infrastructure/   — TagLibSharp, файловая система, journal/rollback
-  MusicOrganizer.Shared/           — сквозные примитивы/утилиты
+  MusicOrganizer.Domain/           — entities, value objects, domain interfaces (no I/O)
+  MusicOrganizer.Application/      — use cases, ports implemented by Infrastructure
+  MusicOrganizer.Infrastructure/   — TagLibSharp, file system, journal/rollback storage
+  MusicOrganizer.Shared/           — cross-cutting primitives/utilities
   MusicOrganizer.Cli/              — composition root: Generic Host + System.CommandLine
 tests/
-  MusicOrganizer.Tests/            — Unit/ и Integration/
+  MusicOrganizer.Tests/            — Unit/ and Integration/
 ```
 
-Domain и Shared ни от чего не зависят; зависимости между слоями идут строго в одну сторону
-(Application → Domain/Shared, Infrastructure → Application/Domain/Shared, Cli → всё остальное).
+`Domain` and `Shared` depend on nothing else in the solution. `Application` depends only on
+`Domain`/`Shared`. `Infrastructure` implements the ports `Application` defines. `Cli` is the only
+place all layers are wired together via dependency injection.
 
-## Сборка и запуск
+## Getting started
 
-Требуется [.NET 10 SDK](https://dotnet.microsoft.com/download).
+Requires the [.NET 10 SDK](https://dotnet.microsoft.com/download).
 
 ```bash
 dotnet build
@@ -60,34 +73,32 @@ dotnet test
 dotnet run --project src/MusicOrganizer.Cli -- --help
 ```
 
-### Примеры
+## Usage
 
 ```bash
-# Сканирование: рекурсивно находит *.mp3, читает теги, печатает отчёт
+# Scan: recursively finds *.mp3, reads tags, prints a report
 dotnet run --project src/MusicOrganizer.Cli -- scan /path/to/music
 
-# Восстановление тегов: dry-run по умолчанию, --apply — реальная запись
+# Recover missing tags — dry-run by default, --apply to actually write
 dotnet run --project src/MusicOrganizer.Cli -- recover-tags /path/to/music
 dotnet run --project src/MusicOrganizer.Cli -- recover-tags /path/to/music --apply
 
-# Переименование по шаблону Artist-Title.mp3
+# Rename to Artist-Title.mp3
 dotnet run --project src/MusicOrganizer.Cli -- rename /path/to/music --apply
 
-# То же самое, но с транслитерацией кириллицы в латиницу (BGN/PCGN)
+# Same, with Cyrillic transliterated to Latin (BGN/PCGN)
 dotnet run --project src/MusicOrganizer.Cli -- rename /path/to/music --apply --transliterate
 
-# Откат последней применённой операции (recover-tags/rename с --apply печатают run id)
-dotnet run --project src/MusicOrganizer.Cli -- rollback <run-id>
-
-# Поиск дубликатов (read-only)
+# Find duplicates (read-only)
 dotnet run --project src/MusicOrganizer.Cli -- find-duplicates /path/to/music
 
-# Удаление точных дубликатов: dry-run по умолчанию, --apply — реальное удаление
+# Remove exact duplicates — dry-run by default, --apply to actually delete
 dotnet run --project src/MusicOrganizer.Cli -- remove-duplicates /path/to/music
 dotnet run --project src/MusicOrganizer.Cli -- remove-duplicates /path/to/music --apply
-```
 
-Ни одна ошибка на отдельном файле не прерывает обработку остальной коллекции.
+# Undo a previous --apply run (recover-tags/rename/remove-duplicates print a run id)
+dotnet run --project src/MusicOrganizer.Cli -- rollback <run-id>
+```
 
 ## Docker
 
@@ -96,22 +107,25 @@ docker build -t musicorganizer .
 docker run --rm -v /path/to/music:/music musicorganizer scan /music
 ```
 
-Multi-stage образ на официальных `mcr.microsoft.com/dotnet` образах, non-root пользователь,
-поддержка `linux/amd64` и `linux/arm64`. Образы для `main` публикуются в GHCR
-(`ghcr.io/alexeydavidenko/musicorganizer`) при каждом пуше.
+Multi-stage image on official `mcr.microsoft.com/dotnet` base images, runs as a non-root user,
+supports `linux/amd64` and `linux/arm64`. Images for `main` are published to GHCR
+(`ghcr.io/alexeydavidenko/musicorganizer`) on every push; tagged releases also publish
+self-contained single-file binaries for Windows, Linux, and macOS (x64/arm64).
 
-## Разработка
+## Development
 
-Перед коммитом: `dotnet format --verify-no-changes`, `dotnet build` (0 warnings, включён
-`TreatWarningsAsErrors`), `dotnet test`. CI (GitHub Actions) прогоняет то же самое на
-Linux/Windows/macOS при каждом PR.
+Before committing: `dotnet format --verify-no-changes`, `dotnet build` (zero warnings,
+`TreatWarningsAsErrors` enabled), `dotnet test`. CI (GitHub Actions) runs the same checks on
+Linux, Windows, and macOS for every pull request.
 
-## Статус проекта
+## Project status
 
-Активная разработка: 5 команд реализовано (`scan`, `recover-tags`, `rename`, `find-duplicates`,
-`remove-duplicates`) плюс общий Journal/Rollback, 99 тестов, CI/CD пайплайн с автосборкой
-Docker-образа и релизами по тегам.
+Under active development. Implemented: 5 commands (`scan`, `recover-tags`, `rename`,
+`find-duplicates`, `remove-duplicates`) plus a shared journal/rollback mechanism, all 8 tag
+recovery levels, 99 passing tests, and a CI/CD pipeline that builds a multi-arch Docker image and
+publishes tagged releases with prebuilt binaries. See the "Non-goals" section above for what's
+still missing.
 
-## Лицензия
+## License
 
-Пока не определена.
+Not yet decided.
