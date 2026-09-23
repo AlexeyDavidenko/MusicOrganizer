@@ -25,6 +25,22 @@ public class FileRenamerTests : IDisposable
     }
 
     [Fact]
+    public async Task RenameAsync_CreatesMissingDestinationFolders_ForACrossFolderMove()
+    {
+        var originalPath = Path.Combine(_root, "original.mp3");
+        var newPath = Path.Combine(_root, "Pink Floyd", "The Wall", "track.mp3");
+        await File.WriteAllTextAsync(originalPath, "content");
+
+        var sut = new FileRenamer(NullLogger<FileRenamer>.Instance);
+
+        var result = await sut.RenameAsync(originalPath, newPath);
+
+        result.Succeeded.Should().BeTrue();
+        File.Exists(originalPath).Should().BeFalse();
+        File.Exists(newPath).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task ExistsAsync_ReflectsWhetherAFileIsPresent()
     {
         var path = Path.Combine(_root, "present.mp3");
