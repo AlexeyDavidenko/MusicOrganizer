@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MusicOrganizer.Application;
 using MusicOrganizer.Application.Deduplication;
+using MusicOrganizer.Application.Encoding;
 using MusicOrganizer.Application.Journal;
 using MusicOrganizer.Application.Recovery;
 using MusicOrganizer.Application.Renaming;
@@ -117,6 +118,73 @@ recoverTagsCommand.SetAction(async (parseResult, cancellationToken) =>
 
     Console.WriteLine($"Scanned {total} file(s): {recovered} recovered, {failed} error(s), {needsManualReview.Count} need manual review.");
     if (apply && recovered > 0)
+    {
+        Console.WriteLine($"Run id (use with 'rollback' to undo): {runId}");
+    }
+
+    return failed == 0 ? 0 : 1;
+});
+
+var fixEncodingPathArgument = new Argument<string>("path") { Description = "Root folder to scan for MP3 files" };
+fixEncodingPathArgument.Validators.Add(result =>
+{
+    var path = result.GetValueOrDefault<string>();
+    if (path is null || !Directory.Exists(path))
+    {
+        result.AddError($"Folder not found: {path}");
+    }
+});
+
+var fixEncodingApplyOption = new Option<bool>("--apply") { Description = "Actually write corrected tags (default is dry-run: report only)" };
+
+var fixEncodingCommand = new Command("fix-encoding", "Detect and correct tag text mis-decoded as Latin1 (legacy Cyrillic encodings, Windows-1252 punctuation)");
+fixEncodingCommand.Arguments.Add(fixEncodingPathArgument);
+fixEncodingCommand.Options.Add(fixEncodingApplyOption);
+fixEncodingCommand.SetAction(async (parseResult, cancellationToken) =>
+{
+    var path = parseResult.GetValue(fixEncodingPathArgument)!;
+    var apply = parseResult.GetValue(fixEncodingApplyOption);
+    var runId = Guid.NewGuid();
+    var encodingFixService = host.Services.GetRequiredService<EncodingFixService>();
+
+    var total = 0;
+    var fixedCount = 0;
+    var failed = 0;
+    var needsManualReview = new List<string>();
+
+    await foreach (var outcome in encodingFixService.FixAsync(path, runId, dryRun: !apply, cancellationToken))
+    {
+        total++;
+        if (outcome.Error is not null)
+        {
+            failed++;
+            Console.WriteLine($"[ERROR]  {outcome.FilePath} — {outcome.Error}");
+        }
+        else if (outcome.HasFix)
+        {
+            fixedCount++;
+            var fields = string.Join(", ", outcome.FixedFields);
+            var verb = apply ? "FIXED" : "WOULD FIX";
+            Console.WriteLine($"[{verb}] {outcome.FilePath} — {fields}");
+        }
+
+        if (outcome.NeedsManualReview)
+        {
+            needsManualReview.Add(outcome.FilePath);
+        }
+    }
+
+    if (needsManualReview.Count > 0)
+    {
+        Console.WriteLine($"[MANUAL REVIEW NEEDED] ({needsManualReview.Count} file(s) - suspicious text, no encoding matched confidently)");
+        foreach (var filePath in needsManualReview)
+        {
+            Console.WriteLine($"  {filePath}");
+        }
+    }
+
+    Console.WriteLine($"Scanned {total} file(s): {fixedCount} fixed, {failed} error(s), {needsManualReview.Count} need manual review.");
+    if (apply && fixedCount > 0)
     {
         Console.WriteLine($"Run id (use with 'rollback' to undo): {runId}");
     }
@@ -332,7 +400,7 @@ removeDuplicatesCommand.SetAction(async (parseResult, cancellationToken) =>
     return failed == 0 ? 0 : 1;
 });
 
-var runIdArgument = new Argument<Guid>("run-id") { Description = "Run id printed by 'recover-tags --apply', 'rename --apply', 'organize --apply', or 'remove-duplicates --apply'" };
+var runIdArgument = new Argument<Guid>("run-id") { Description = "Run id printed by 'recover-tags --apply', 'fix-encoding --apply', 'rename --apply', 'organize --apply', or 'remove-duplicates --apply'" };
 
 var rollbackCommand = new Command("rollback", "Restore files backed up during a previous run");
 rollbackCommand.Arguments.Add(runIdArgument);
@@ -356,6 +424,7 @@ rollbackCommand.SetAction(async (parseResult, cancellationToken) =>
 var rootCommand = new RootCommand("MusicOrganizer - professional MP3 collection manager");
 rootCommand.Subcommands.Add(scanCommand);
 rootCommand.Subcommands.Add(recoverTagsCommand);
+rootCommand.Subcommands.Add(fixEncodingCommand);
 rootCommand.Subcommands.Add(renameCommand);
 rootCommand.Subcommands.Add(organizeCommand);
 rootCommand.Subcommands.Add(findDuplicatesCommand);

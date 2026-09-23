@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using MusicOrganizer.Application.Deduplication;
+using MusicOrganizer.Application.Encoding;
 using MusicOrganizer.Application.Journal;
 using MusicOrganizer.Application.Recovery;
 using MusicOrganizer.Application.Renaming;
@@ -34,6 +35,7 @@ public static class DependencyInjection
         services.AddTransient<OrganizeEngine>();
         services.AddTransient<IDuplicateFinder, DuplicateFinder>();
         services.AddTransient<DuplicateRemovalService>();
+        services.AddTransient<EncodingFixService>();
         return services;
     }
 }
