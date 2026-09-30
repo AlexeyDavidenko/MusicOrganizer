@@ -257,14 +257,17 @@ organizePathArgument.Validators.Add(result =>
 });
 
 var organizeApplyOption = new Option<bool>("--apply") { Description = "Actually move files (default is dry-run: report only)" };
+var organizePruneOption = new Option<bool>("--prune-empty-folders") { Description = "Remove folders left empty after moving their files out (only with --apply; each removal is journaled and reversible via 'rollback')" };
 
 var organizeCommand = new Command("organize", "Move files into an Artist/Album folder tree under the root (falls back to Artist-only when Album is unknown); file names are left as-is");
 organizeCommand.Arguments.Add(organizePathArgument);
 organizeCommand.Options.Add(organizeApplyOption);
+organizeCommand.Options.Add(organizePruneOption);
 organizeCommand.SetAction(async (parseResult, cancellationToken) =>
 {
     var path = parseResult.GetValue(organizePathArgument)!;
     var apply = parseResult.GetValue(organizeApplyOption);
+    var pruneEmptyFolders = parseResult.GetValue(organizePruneOption);
     var runId = Guid.NewGuid();
     var organizeEngine = host.Services.GetRequiredService<OrganizeEngine>();
 
@@ -272,7 +275,7 @@ organizeCommand.SetAction(async (parseResult, cancellationToken) =>
     var moved = 0;
     var failed = 0;
 
-    await foreach (var outcome in organizeEngine.OrganizeAsync(path, runId, dryRun: !apply, cancellationToken))
+    await foreach (var outcome in organizeEngine.OrganizeAsync(path, runId, dryRun: !apply, pruneEmptyFolders, cancellationToken))
     {
         total++;
         if (outcome.Error is not null)
@@ -421,6 +424,32 @@ rollbackCommand.SetAction(async (parseResult, cancellationToken) =>
     return restored > 0 ? 0 : 1;
 });
 
+var cleanJournalDaysOption = new Option<int>("--older-than-days") { Description = "Delete runs whose most recent activity is older than this many days" };
+cleanJournalDaysOption.DefaultValueFactory = _ => 30;
+var cleanJournalApplyOption = new Option<bool>("--apply") { Description = "Actually delete old runs (default is dry-run: report only)" };
+
+var cleanJournalCommand = new Command("clean-journal", "Delete old runs from the journal (backups accumulate under %LocalAppData%/MusicOrganizer/journal/ otherwise)");
+cleanJournalCommand.Options.Add(cleanJournalDaysOption);
+cleanJournalCommand.Options.Add(cleanJournalApplyOption);
+cleanJournalCommand.SetAction(async (parseResult, cancellationToken) =>
+{
+    var olderThanDays = parseResult.GetValue(cleanJournalDaysOption);
+    var apply = parseResult.GetValue(cleanJournalApplyOption);
+    var cleanJournalUseCase = host.Services.GetRequiredService<CleanJournalUseCase>();
+
+    var total = 0;
+
+    await foreach (var outcome in cleanJournalUseCase.CleanAsync(TimeSpan.FromDays(olderThanDays), dryRun: !apply, cancellationToken))
+    {
+        total++;
+        var verb = apply ? "DELETED" : "WOULD DELETE";
+        Console.WriteLine($"[{verb}] {outcome.RunId} — {outcome.EntryCount} entrie(s), last activity {outcome.LastActivityAtUtc:u}");
+    }
+
+    Console.WriteLine($"{(apply ? "Deleted" : "Would delete")} {total} run(s) older than {olderThanDays} day(s).");
+    return 0;
+});
+
 var rootCommand = new RootCommand("MusicOrganizer - professional MP3 collection manager");
 rootCommand.Subcommands.Add(scanCommand);
 rootCommand.Subcommands.Add(recoverTagsCommand);
@@ -430,5 +459,6 @@ rootCommand.Subcommands.Add(organizeCommand);
 rootCommand.Subcommands.Add(findDuplicatesCommand);
 rootCommand.Subcommands.Add(removeDuplicatesCommand);
 rootCommand.Subcommands.Add(rollbackCommand);
+rootCommand.Subcommands.Add(cleanJournalCommand);
 
 return await rootCommand.Parse(args).InvokeAsync();

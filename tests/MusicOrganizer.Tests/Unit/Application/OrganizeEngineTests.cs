@@ -23,9 +23,9 @@ public class OrganizeEngineTests
         var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, TagsFor("Pink Floyd", "The Wall")));
         var renamer = new FakeFileRenamer(exists: _ => false);
         var journal = new FakeJournal();
-        var sut = new OrganizeEngine(scanner, reader, renamer, journal, NullLogger<OrganizeEngine>.Instance);
+        var sut = new OrganizeEngine(scanner, reader, renamer, journal, new FakeDirectoryPruner(), NullLogger<OrganizeEngine>.Instance);
 
-        var outcomes = await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: true));
+        var outcomes = await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: true, pruneEmptyFolders: false));
 
         outcomes.Should().ContainSingle();
         outcomes[0].ProposedPath.Should().Be(ProposedPath);
@@ -45,9 +45,9 @@ public class OrganizeEngineTests
             exists: _ => false,
             onRename: () => callOrder.Add("move"));
         var journal = new FakeJournal(onRecordMove: () => callOrder.Add("journal"));
-        var sut = new OrganizeEngine(scanner, reader, renamer, journal, NullLogger<OrganizeEngine>.Instance);
+        var sut = new OrganizeEngine(scanner, reader, renamer, journal, new FakeDirectoryPruner(), NullLogger<OrganizeEngine>.Instance);
 
-        var outcomes = await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: false));
+        var outcomes = await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: false, pruneEmptyFolders: false));
 
         outcomes.Should().ContainSingle();
         outcomes[0].Applied.Should().BeTrue();
@@ -61,9 +61,9 @@ public class OrganizeEngineTests
         var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, TagsFor(null, "The Wall")));
         var renamer = new FakeFileRenamer(exists: _ => false);
         var journal = new FakeJournal();
-        var sut = new OrganizeEngine(scanner, reader, renamer, journal, NullLogger<OrganizeEngine>.Instance);
+        var sut = new OrganizeEngine(scanner, reader, renamer, journal, new FakeDirectoryPruner(), NullLogger<OrganizeEngine>.Instance);
 
-        var outcomes = await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: false));
+        var outcomes = await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: false, pruneEmptyFolders: false));
 
         outcomes.Should().ContainSingle();
         outcomes[0].Error.Should().BeNull();
@@ -78,9 +78,9 @@ public class OrganizeEngineTests
         var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, TagsFor("Pink Floyd", null)));
         var renamer = new FakeFileRenamer(exists: _ => false);
         var journal = new FakeJournal();
-        var sut = new OrganizeEngine(scanner, reader, renamer, journal, NullLogger<OrganizeEngine>.Instance);
+        var sut = new OrganizeEngine(scanner, reader, renamer, journal, new FakeDirectoryPruner(), NullLogger<OrganizeEngine>.Instance);
 
-        var outcomes = await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: true));
+        var outcomes = await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: true, pruneEmptyFolders: false));
 
         outcomes.Should().ContainSingle();
         outcomes[0].ProposedPath.Should().Be(Path.Combine(RootPath, "Pink_Floyd", "track.mp3"));
@@ -93,9 +93,9 @@ public class OrganizeEngineTests
         var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, TagsFor("Pink Floyd", "The Wall")));
         var renamer = new FakeFileRenamer(exists: path => path == ProposedPath);
         var journal = new FakeJournal();
-        var sut = new OrganizeEngine(scanner, reader, renamer, journal, NullLogger<OrganizeEngine>.Instance);
+        var sut = new OrganizeEngine(scanner, reader, renamer, journal, new FakeDirectoryPruner(), NullLogger<OrganizeEngine>.Instance);
 
-        var outcomes = await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: true));
+        var outcomes = await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: true, pruneEmptyFolders: false));
 
         outcomes.Should().ContainSingle();
         outcomes[0].ProposedPath.Should().Be(Path.Combine(RootPath, "Pink_Floyd", "The_Wall", "track (1).mp3"));
@@ -114,13 +114,98 @@ public class OrganizeEngineTests
                 ? RenameResult.Failure(path, "disk full")
                 : RenameResult.Success(path, ProposedPath));
         var journal = new FakeJournal();
-        var sut = new OrganizeEngine(scanner, reader, renamer, journal, NullLogger<OrganizeEngine>.Instance);
+        var sut = new OrganizeEngine(scanner, reader, renamer, journal, new FakeDirectoryPruner(), NullLogger<OrganizeEngine>.Instance);
 
-        var outcomes = await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: false));
+        var outcomes = await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: false, pruneEmptyFolders: false));
 
         outcomes.Should().HaveCount(2);
         outcomes[0].Error.Should().Be("disk full");
         outcomes[1].Applied.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task OrganizeAsync_PrunesSourceFolder_WhenApplyingWithPruneFlag()
+    {
+        var scanner = new FakeFileSystemScanner([OriginalPath]);
+        var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, TagsFor("Pink Floyd", "The Wall")));
+        var renamer = new FakeFileRenamer(exists: _ => false);
+        var journal = new FakeJournal();
+        var pruner = new FakeDirectoryPruner();
+        var sut = new OrganizeEngine(scanner, reader, renamer, journal, pruner, NullLogger<OrganizeEngine>.Instance);
+
+        await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: false, pruneEmptyFolders: true));
+
+        var expectedSourceDirectory = Path.Combine(RootPath, "flat");
+        pruner.RemovedDirectories.Should().Contain(expectedSourceDirectory);
+        journal.RemovedDirectories.Should().Contain(expectedSourceDirectory);
+    }
+
+    [Fact]
+    public async Task OrganizeAsync_DoesNotPrune_WhenDryRun()
+    {
+        var scanner = new FakeFileSystemScanner([OriginalPath]);
+        var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, TagsFor("Pink Floyd", "The Wall")));
+        var renamer = new FakeFileRenamer(exists: _ => false);
+        var journal = new FakeJournal();
+        var pruner = new FakeDirectoryPruner();
+        var sut = new OrganizeEngine(scanner, reader, renamer, journal, pruner, NullLogger<OrganizeEngine>.Instance);
+
+        await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: true, pruneEmptyFolders: true));
+
+        pruner.RemovedDirectories.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task OrganizeAsync_DoesNotPrune_WhenFlagIsFalse()
+    {
+        var scanner = new FakeFileSystemScanner([OriginalPath]);
+        var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, TagsFor("Pink Floyd", "The Wall")));
+        var renamer = new FakeFileRenamer(exists: _ => false);
+        var journal = new FakeJournal();
+        var pruner = new FakeDirectoryPruner();
+        var sut = new OrganizeEngine(scanner, reader, renamer, journal, pruner, NullLogger<OrganizeEngine>.Instance);
+
+        await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: false, pruneEmptyFolders: false));
+
+        pruner.RemovedDirectories.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task OrganizeAsync_ClimbsUpwardPruning_UntilAFolderIsNotEmpty_ButNeverPrunesTheRoot()
+    {
+        var nestedPath = Path.Combine(RootPath, "flat", "nested", "track.mp3");
+        var scanner = new FakeFileSystemScanner([nestedPath]);
+        var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, TagsFor("Pink Floyd", "The Wall")));
+        var renamer = new FakeFileRenamer(exists: _ => false);
+        var journal = new FakeJournal();
+        var flatDirectory = Path.Combine(RootPath, "flat");
+        // "nested" and its parent "flat" are both empty after the move; "flat"'s own parent is
+        // RootPath itself, which must never be offered to the pruner at all.
+        var pruner = new FakeDirectoryPruner(canRemove: dir => !string.Equals(dir, RootPath, StringComparison.OrdinalIgnoreCase));
+        var sut = new OrganizeEngine(scanner, reader, renamer, journal, pruner, NullLogger<OrganizeEngine>.Instance);
+
+        await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: false, pruneEmptyFolders: true));
+
+        pruner.RemovedDirectories.Should().Equal(Path.Combine(flatDirectory, "nested"), flatDirectory);
+        pruner.RemovedDirectories.Should().NotContain(RootPath);
+    }
+
+    [Fact]
+    public async Task OrganizeAsync_StopsClimbing_WhenAFolderIsNotEmpty()
+    {
+        var nestedPath = Path.Combine(RootPath, "flat", "nested", "track.mp3");
+        var scanner = new FakeFileSystemScanner([nestedPath]);
+        var reader = new FakeAudioTagReader(path => ScanEntry.Success(path, TagsFor("Pink Floyd", "The Wall")));
+        var renamer = new FakeFileRenamer(exists: _ => false);
+        var journal = new FakeJournal();
+        var flatDirectory = Path.Combine(RootPath, "flat");
+        // "nested" is empty and gets removed, but "flat" still has other content -> climb stops.
+        var pruner = new FakeDirectoryPruner(canRemove: dir => !string.Equals(dir, flatDirectory, StringComparison.OrdinalIgnoreCase));
+        var sut = new OrganizeEngine(scanner, reader, renamer, journal, pruner, NullLogger<OrganizeEngine>.Instance);
+
+        await CollectAsync(sut.OrganizeAsync(RootPath, Guid.NewGuid(), dryRun: false, pruneEmptyFolders: true));
+
+        pruner.RemovedDirectories.Should().Equal(Path.Combine(flatDirectory, "nested"));
     }
 
     private static AudioTags TagsFor(string? artist, string? album) =>
@@ -177,9 +262,27 @@ public class OrganizeEngineTests
         }
     }
 
+    private sealed class FakeDirectoryPruner(Func<string, bool>? canRemove = null) : IDirectoryPruner
+    {
+        public List<string> RemovedDirectories { get; } = [];
+
+        public Task<bool> TryRemoveIfEmptyAsync(string directory, CancellationToken cancellationToken = default)
+        {
+            var removed = canRemove?.Invoke(directory) ?? true;
+            if (removed)
+            {
+                RemovedDirectories.Add(directory);
+            }
+
+            return Task.FromResult(removed);
+        }
+    }
+
     private sealed class FakeJournal(Action? onRecordMove = null) : IOperationJournal
     {
         public int RecordCallCount { get; private set; }
+
+        public List<string> RemovedDirectories { get; } = [];
 
         public Task<JournalEntry> RecordMutationAsync(Guid runId, string filePath, string operationType, CancellationToken cancellationToken = default)
         {
@@ -192,6 +295,13 @@ public class OrganizeEngineTests
             RecordCallCount++;
             onRecordMove?.Invoke();
             return Task.FromResult(new JournalEntry(Guid.NewGuid(), runId, originalPath, null, newPath, operationType, DateTimeOffset.UtcNow));
+        }
+
+        public Task<JournalEntry> RecordDirectoryRemovalAsync(Guid runId, string directoryPath, string operationType, CancellationToken cancellationToken = default)
+        {
+            RecordCallCount++;
+            RemovedDirectories.Add(directoryPath);
+            return Task.FromResult(new JournalEntry(Guid.NewGuid(), runId, directoryPath, null, null, operationType, DateTimeOffset.UtcNow));
         }
 
         public async IAsyncEnumerable<JournalEntry> GetEntriesAsync(Guid runId, [EnumeratorCancellation] CancellationToken cancellationToken = default)

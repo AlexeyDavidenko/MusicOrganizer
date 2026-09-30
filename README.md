@@ -22,7 +22,8 @@ Every operation that touches disk supports **dry-run**, is recorded in a **journ
   transliteration (`rename`, `--transliterate`, BGN/PCGN).
 - **Organize the collection** into an `Artist/Album` folder tree (falling back to a flat
   `Artist/` folder when Album is unknown), leaving file names untouched — composes with `rename`
-  in either order (`organize`).
+  in either order (`organize`), optionally removing folders left empty by the move
+  (`--prune-empty-folders`, opt-in, fully reversible via `rollback`).
 - **Detect and correct mis-decoded tag text** — legacy Cyrillic encodings (Windows-1251, CP866)
   or UTF-8 read as Latin1, and Windows-1252 punctuation read as Latin1 control characters,
   restored via reversible byte re-decoding with confidence-gated detection; genuinely correct
@@ -32,8 +33,11 @@ Every operation that touches disk supports **dry-run**, is recorded in a **journ
 - **Remove exact duplicates**, always keeping the file with the shortest path in each group;
   tag-only matches are never touched automatically, since they may be legitimate alternate
   versions (`remove-duplicates`).
-- **Roll back** any previous `--apply` run by its run id, restoring modified or deleted files from
-  the journal (`rollback`).
+- **Roll back** any previous `--apply` run by its run id, restoring modified or deleted files (and
+  any folders removed by `--prune-empty-folders`) from the journal, in reverse-chronological order
+  so dependent changes undo correctly (`rollback`).
+- **Prune old journal runs** so backups don't accumulate forever (`clean-journal
+  [--older-than-days N]`, dry-run by default, 30 days by default).
 - Every mutating command is dry-run by default; per-file errors never abort a run on the rest of
   the collection.
 
@@ -101,6 +105,9 @@ dotnet run --project src/MusicOrganizer.Cli -- rename /path/to/music --apply --t
 # Organize into an Artist/Album folder tree (file names are left as-is)
 dotnet run --project src/MusicOrganizer.Cli -- organize /path/to/music --apply
 
+# Same, also removing folders left empty by the move
+dotnet run --project src/MusicOrganizer.Cli -- organize /path/to/music --apply --prune-empty-folders
+
 # Find duplicates (read-only)
 dotnet run --project src/MusicOrganizer.Cli -- find-duplicates /path/to/music
 
@@ -110,6 +117,10 @@ dotnet run --project src/MusicOrganizer.Cli -- remove-duplicates /path/to/music 
 
 # Undo a previous --apply run (recover-tags/fix-encoding/rename/organize/remove-duplicates print a run id)
 dotnet run --project src/MusicOrganizer.Cli -- rollback <run-id>
+
+# Delete journal runs older than 30 days (dry-run by default)
+dotnet run --project src/MusicOrganizer.Cli -- clean-journal
+dotnet run --project src/MusicOrganizer.Cli -- clean-journal --older-than-days 7 --apply
 ```
 
 ## Docker
@@ -132,12 +143,13 @@ Linux, Windows, and macOS for every pull request.
 
 ## Project status
 
-Under active development, first release `v0.1.0` published. Implemented: 7 commands (`scan`,
-`recover-tags`, `fix-encoding`, `rename`, `organize`, `find-duplicates`, `remove-duplicates`) plus
-a shared journal/rollback mechanism, all 8 tag recovery levels, encoding detection/correction,
-resilient scanning (an unreadable folder is skipped and logged instead of aborting the run), 141
-passing tests, and a CI/CD pipeline that builds a multi-arch Docker image and publishes tagged
-releases with prebuilt binaries. See the "Non-goals" section above for what's still missing.
+Under active development, first release `v0.1.0` published. Implemented: 8 commands (`scan`,
+`recover-tags`, `fix-encoding`, `rename`, `organize`, `find-duplicates`, `remove-duplicates`,
+`clean-journal`) plus a shared journal/rollback mechanism, all 8 tag recovery levels, encoding
+detection/correction, resilient scanning (an unreadable folder is skipped and logged instead of
+aborting the run), reversible empty-folder pruning after `organize`, 158 passing tests, and a
+CI/CD pipeline that builds a multi-arch Docker image and publishes tagged releases with prebuilt
+binaries. See the "Non-goals" section above for what's still missing.
 
 ## License
 

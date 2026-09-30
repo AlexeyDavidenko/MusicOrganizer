@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using MusicOrganizer.Domain.Journal;
 using MusicOrganizer.Infrastructure.Journal;
 
 namespace MusicOrganizer.Tests.Integration.Infrastructure;
@@ -44,6 +45,62 @@ public class FileBackupJournalTests : IDisposable
 
         File.Exists(originalPath).Should().BeTrue();
         File.Exists(newPath).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task RecordDirectoryRemovalAndRestore_RecreatesTheEmptyDirectory()
+    {
+        var directoryPath = Path.Combine(_root, "Pink Floyd");
+        Directory.CreateDirectory(directoryPath);
+
+        var runId = Guid.NewGuid();
+        var journal = new FileBackupJournal(NullLogger<FileBackupJournal>.Instance, JournalRoot);
+
+        var entry = await journal.RecordDirectoryRemovalAsync(runId, directoryPath, "organize-prune-folder");
+        Directory.Delete(directoryPath);
+
+        await journal.RestoreAsync(entry);
+
+        Directory.Exists(directoryPath).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task GetAllRunsAsync_SummarizesEveryRecordedRun()
+    {
+        var filePath = Path.Combine(_root, "song.mp3");
+        await File.WriteAllTextAsync(filePath, "content");
+        var runId = Guid.NewGuid();
+        var journal = new FileBackupJournal(NullLogger<FileBackupJournal>.Instance, JournalRoot);
+        await journal.RecordMutationAsync(runId, filePath, "tag-recovery");
+        await journal.RecordMutationAsync(runId, filePath, "tag-recovery");
+
+        var runs = new List<JournalRunSummary>();
+        await foreach (var run in journal.GetAllRunsAsync())
+        {
+            runs.Add(run);
+        }
+
+        runs.Should().ContainSingle(r => r.RunId == runId && r.EntryCount == 2);
+    }
+
+    [Fact]
+    public async Task DeleteRunAsync_RemovesTheRunFromSubsequentEnumeration()
+    {
+        var filePath = Path.Combine(_root, "song.mp3");
+        await File.WriteAllTextAsync(filePath, "content");
+        var runId = Guid.NewGuid();
+        var journal = new FileBackupJournal(NullLogger<FileBackupJournal>.Instance, JournalRoot);
+        await journal.RecordMutationAsync(runId, filePath, "tag-recovery");
+
+        await journal.DeleteRunAsync(runId);
+
+        var runs = new List<JournalRunSummary>();
+        await foreach (var run in journal.GetAllRunsAsync())
+        {
+            runs.Add(run);
+        }
+
+        runs.Should().NotContain(r => r.RunId == runId);
     }
 
     [Fact]

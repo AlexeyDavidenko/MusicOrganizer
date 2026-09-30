@@ -16,11 +16,13 @@ namespace MusicOrganizer.Application.Renaming;
 public sealed partial class OrganizeEngine
 {
     private const string OperationType = "organize";
+    private const string PruneOperationType = "organize-prune-folder";
 
     private readonly IFileSystemScanner _fileSystemScanner;
     private readonly IAudioTagReader _audioTagReader;
     private readonly IFileRenamer _fileRenamer;
     private readonly IOperationJournal _journal;
+    private readonly IDirectoryPruner _directoryPruner;
     private readonly ILogger<OrganizeEngine> _logger;
 
     /// <summary>
@@ -31,12 +33,14 @@ public sealed partial class OrganizeEngine
         IAudioTagReader audioTagReader,
         IFileRenamer fileRenamer,
         IOperationJournal journal,
+        IDirectoryPruner directoryPruner,
         ILogger<OrganizeEngine> logger)
     {
         _fileSystemScanner = fileSystemScanner;
         _audioTagReader = audioTagReader;
         _fileRenamer = fileRenamer;
         _journal = journal;
+        _directoryPruner = directoryPruner;
         _logger = logger;
     }
 
@@ -49,14 +53,22 @@ public sealed partial class OrganizeEngine
     /// <param name="rootPath">Root folder to scan, and the root of the Artist/Album tree files are moved under.</param>
     /// <param name="runId">Identifier for this organize run, used for journaling.</param>
     /// <param name="dryRun">When true, no files are moved and nothing is journaled.</param>
+    /// <param name="pruneEmptyFolders">
+    /// When true (and <paramref name="dryRun"/> is false), folders left empty by a move are
+    /// removed after the run, climbing up towards <paramref name="rootPath"/> as each becomes
+    /// empty in turn. Each removal is journaled (an empty folder has nothing to back up -
+    /// recreating it on rollback is a complete undo).
+    /// </param>
     /// <param name="cancellationToken">Token used to stop the run early.</param>
     public async IAsyncEnumerable<RenameOutcome> OrganizeAsync(
         string rootPath,
         Guid runId,
         bool dryRun,
+        bool pruneEmptyFolders,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         LogOrganizeStarted(rootPath, dryRun);
+        var touchedDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         await foreach (var filePath in _fileSystemScanner.EnumerateAudioFilesAsync(rootPath, cancellationToken))
         {
@@ -100,10 +112,52 @@ public sealed partial class OrganizeEngine
             await _journal.RecordMoveAsync(runId, filePath, resolvedPath!, OperationType, cancellationToken);
             var moveResult = await _fileRenamer.RenameAsync(filePath, resolvedPath!, cancellationToken);
 
+            if (moveResult.Succeeded)
+            {
+                var sourceDirectory = Path.GetDirectoryName(filePath);
+                if (sourceDirectory is not null)
+                {
+                    touchedDirectories.Add(sourceDirectory);
+                }
+            }
+
             yield return outcome with { Applied = moveResult.Succeeded, Error = moveResult.Error };
         }
 
+        if (pruneEmptyFolders && !dryRun)
+        {
+            await PruneEmptyFoldersAsync(rootPath, runId, touchedDirectories, cancellationToken);
+        }
+
         LogOrganizeFinished(rootPath);
+    }
+
+    private async Task PruneEmptyFoldersAsync(
+        string rootPath,
+        Guid runId,
+        IReadOnlySet<string> touchedDirectories,
+        CancellationToken cancellationToken)
+    {
+        var normalizedRoot = Path.GetFullPath(rootPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        foreach (var startDirectory in touchedDirectories)
+        {
+            var current = startDirectory;
+            while (!string.IsNullOrEmpty(current)
+                && !string.Equals(Path.GetFullPath(current).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), normalizedRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                await _journal.RecordDirectoryRemovalAsync(runId, current, PruneOperationType, cancellationToken);
+                var removed = await _directoryPruner.TryRemoveIfEmptyAsync(current, cancellationToken);
+                if (!removed)
+                {
+                    break;
+                }
+
+                current = Path.GetDirectoryName(current);
+            }
+        }
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Starting organize of {RootPath} (dryRun={DryRun})")]

@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddTransient<ITagRecoverySource, HeuristicFilenameTagRecoverySource>();
         services.AddTransient<TagRecoveryService>();
         services.AddTransient<RollbackRunUseCase>();
+        services.AddTransient<CleanJournalUseCase>();
         services.AddTransient<RenameEngine>();
         services.AddTransient<OrganizeEngine>();
         services.AddTransient<IDuplicateFinder, DuplicateFinder>();

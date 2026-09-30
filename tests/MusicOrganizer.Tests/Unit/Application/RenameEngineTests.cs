@@ -208,6 +208,12 @@ public class RenameEngineTests
             return Task.FromResult(new JournalEntry(Guid.NewGuid(), runId, originalPath, null, newPath, operationType, DateTimeOffset.UtcNow));
         }
 
+        public Task<JournalEntry> RecordDirectoryRemovalAsync(Guid runId, string directoryPath, string operationType, CancellationToken cancellationToken = default)
+        {
+            RecordCallCount++;
+            return Task.FromResult(new JournalEntry(Guid.NewGuid(), runId, directoryPath, null, null, operationType, DateTimeOffset.UtcNow));
+        }
+
         public async IAsyncEnumerable<JournalEntry> GetEntriesAsync(Guid runId, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             await Task.CompletedTask;
