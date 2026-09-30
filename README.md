@@ -17,6 +17,8 @@ Every operation that touches disk supports **dry-run**, is recorded in a **journ
   parsing, folder structure (Album/Artist/Parent), collection-wide statistics (consensus across
   sibling files), extended filename heuristics (track numbers, noise suffixes), and a
   manual-review report for anything no source could resolve (`recover-tags`).
+- **Write a plain-text report file** alongside the console output for `scan`, `recover-tags`, and
+  `find-duplicates` (`--report <path>`, overwritten each run).
 - **Rename files** to a consistent `Artist-Title.mp3` template, with Unicode normalization,
   forbidden-character stripping, deterministic collision resolution, and optional Cyrillic → Latin
   transliteration (`rename`, `--transliterate`, BGN/PCGN).
@@ -43,9 +45,10 @@ Every operation that touches disk supports **dry-run**, is recorded in a **journ
 
 ## Non-goals (for now)
 
-File-based reports and audio fingerprinting are not implemented yet. The architecture is designed to add them, along with other
-audio formats (FLAC, OGG, AAC, ...) and online metadata sources (MusicBrainz, AcoustID, Discogs,
-Last.fm), without restructuring existing code.
+Structured report formats (JSON/CSV/HTML — only plain text exists today) and audio fingerprinting
+are not implemented yet. The architecture is designed to add them, along with other audio formats
+(FLAC, OGG, AAC, ...) and online metadata sources (MusicBrainz, AcoustID, Discogs, Last.fm),
+without restructuring existing code.
 
 ## Technology
 
@@ -88,9 +91,12 @@ dotnet run --project src/MusicOrganizer.Cli -- --help
 # Scan: recursively finds *.mp3, reads tags, prints a report
 dotnet run --project src/MusicOrganizer.Cli -- scan /path/to/music
 
+# Same, also writing a plain-text report file
+dotnet run --project src/MusicOrganizer.Cli -- scan /path/to/music --report scan-report.txt
+
 # Recover missing tags — dry-run by default, --apply to actually write
 dotnet run --project src/MusicOrganizer.Cli -- recover-tags /path/to/music
-dotnet run --project src/MusicOrganizer.Cli -- recover-tags /path/to/music --apply
+dotnet run --project src/MusicOrganizer.Cli -- recover-tags /path/to/music --apply --report recover-report.txt
 
 # Detect and correct mis-decoded tag text — dry-run by default, --apply to actually write
 dotnet run --project src/MusicOrganizer.Cli -- fix-encoding /path/to/music
@@ -108,8 +114,9 @@ dotnet run --project src/MusicOrganizer.Cli -- organize /path/to/music --apply
 # Same, also removing folders left empty by the move
 dotnet run --project src/MusicOrganizer.Cli -- organize /path/to/music --apply --prune-empty-folders
 
-# Find duplicates (read-only)
+# Find duplicates (read-only), optionally also writing a plain-text report file
 dotnet run --project src/MusicOrganizer.Cli -- find-duplicates /path/to/music
+dotnet run --project src/MusicOrganizer.Cli -- find-duplicates /path/to/music --report duplicates-report.txt
 
 # Remove exact duplicates — dry-run by default, --apply to actually delete
 dotnet run --project src/MusicOrganizer.Cli -- remove-duplicates /path/to/music
@@ -147,9 +154,10 @@ Under active development, first release `v0.1.0` published. Implemented: 8 comma
 `recover-tags`, `fix-encoding`, `rename`, `organize`, `find-duplicates`, `remove-duplicates`,
 `clean-journal`) plus a shared journal/rollback mechanism, all 8 tag recovery levels, encoding
 detection/correction, resilient scanning (an unreadable folder is skipped and logged instead of
-aborting the run), reversible empty-folder pruning after `organize`, 158 passing tests, and a
-CI/CD pipeline that builds a multi-arch Docker image and publishes tagged releases with prebuilt
-binaries. See the "Non-goals" section above for what's still missing.
+aborting the run), reversible empty-folder pruning after `organize`, plain-text file reports for
+`scan`/`recover-tags`/`find-duplicates` (`--report`), 160 passing tests, and a CI/CD pipeline that
+builds a multi-arch Docker image and publishes tagged releases with prebuilt binaries. See the
+"Non-goals" section above for what's still missing.
 
 ## License
 

@@ -1,3 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
+  <PropertyGroup>
+    <!-- CA1716: "Shared" is a reserved keyword in VB.NET. The project/namespace name is fixed by
+         PROMPT.md's mandated Clean Architecture project list (MusicOrganizer.Shared); this is a
+         C#-only project, so VB.NET interop is out of scope. -->
+    <NoWarn>$(NoWarn);CA1716</NoWarn>
+  </PropertyGroup>
+
 </Project>
