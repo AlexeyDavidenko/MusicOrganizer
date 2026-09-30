@@ -11,6 +11,7 @@ using MusicOrganizer.Application.Renaming;
 using MusicOrganizer.Application.Scanning;
 using MusicOrganizer.Domain.Deduplication;
 using MusicOrganizer.Infrastructure;
+using MusicOrganizer.Shared;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddApplicationServices();
@@ -28,34 +29,70 @@ pathArgument.Validators.Add(result =>
     }
 });
 
+var reportOption = new Option<string?>("--report") { Description = "Also write this command's output to a plain-text report file (overwritten each run)" };
+reportOption.Validators.Add(result =>
+{
+    var reportPath = result.GetValueOrDefault<string?>();
+    if (reportPath is null)
+    {
+        return;
+    }
+
+    var directory = Path.GetDirectoryName(reportPath);
+    if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+    {
+        result.AddError($"Report file directory not found: {directory}");
+    }
+});
+
+static (TextWriter Output, StreamWriter? ReportWriter) CreateOutputWriter(string? reportPath)
+{
+    if (reportPath is null)
+    {
+        return (Console.Out, null);
+    }
+
+    var reportWriter = new StreamWriter(reportPath, append: false) { AutoFlush = true };
+    return (new TeeTextWriter(Console.Out, reportWriter), reportWriter);
+}
+
 var scanCommand = new Command("scan", "Recursively scan a folder for MP3 files and report their tags");
 scanCommand.Arguments.Add(pathArgument);
+scanCommand.Options.Add(reportOption);
 scanCommand.SetAction(async (parseResult, cancellationToken) =>
 {
     var path = parseResult.GetValue(pathArgument)!;
-    var scanner = host.Services.GetRequiredService<CollectionScanner>();
-
-    var total = 0;
-    var tagged = 0;
-    var failed = 0;
-
-    await foreach (var entry in scanner.ScanAsync(path, cancellationToken))
+    var (output, reportWriter) = CreateOutputWriter(parseResult.GetValue(reportOption));
+    try
     {
-        total++;
-        if (entry.Succeeded)
-        {
-            tagged++;
-            Console.WriteLine($"[OK]    {entry.FilePath} — {entry.Tags!.Artist ?? "?"} - {entry.Tags.Title ?? "?"}");
-        }
-        else
-        {
-            failed++;
-            Console.WriteLine($"[ERROR] {entry.FilePath} — {entry.Error}");
-        }
-    }
+        var scanner = host.Services.GetRequiredService<CollectionScanner>();
 
-    Console.WriteLine($"Scanned {total} file(s): {tagged} with tags, {failed} error(s).");
-    return failed == 0 ? 0 : 1;
+        var total = 0;
+        var tagged = 0;
+        var failed = 0;
+
+        await foreach (var entry in scanner.ScanAsync(path, cancellationToken))
+        {
+            total++;
+            if (entry.Succeeded)
+            {
+                tagged++;
+                output.WriteLine($"[OK]    {entry.FilePath} — {entry.Tags!.Artist ?? "?"} - {entry.Tags.Title ?? "?"}");
+            }
+            else
+            {
+                failed++;
+                output.WriteLine($"[ERROR] {entry.FilePath} — {entry.Error}");
+            }
+        }
+
+        output.WriteLine($"Scanned {total} file(s): {tagged} with tags, {failed} error(s).");
+        return failed == 0 ? 0 : 1;
+    }
+    finally
+    {
+        reportWriter?.Dispose();
+    }
 });
 
 var recoverPathArgument = new Argument<string>("path") { Description = "Root folder to scan for MP3 files" };
@@ -73,56 +110,65 @@ var applyOption = new Option<bool>("--apply") { Description = "Actually write ch
 var recoverTagsCommand = new Command("recover-tags", "Recover missing Artist/Title tags from file names");
 recoverTagsCommand.Arguments.Add(recoverPathArgument);
 recoverTagsCommand.Options.Add(applyOption);
+recoverTagsCommand.Options.Add(reportOption);
 recoverTagsCommand.SetAction(async (parseResult, cancellationToken) =>
 {
     var path = parseResult.GetValue(recoverPathArgument)!;
     var apply = parseResult.GetValue(applyOption);
-    var runId = Guid.NewGuid();
-    var recoveryService = host.Services.GetRequiredService<TagRecoveryService>();
-
-    var total = 0;
-    var recovered = 0;
-    var failed = 0;
-    var needsManualReview = new List<string>();
-
-    await foreach (var outcome in recoveryService.RecoverAsync(path, runId, dryRun: !apply, cancellationToken))
+    var (output, reportWriter) = CreateOutputWriter(parseResult.GetValue(reportOption));
+    try
     {
-        total++;
-        if (outcome.Error is not null)
+        var runId = Guid.NewGuid();
+        var recoveryService = host.Services.GetRequiredService<TagRecoveryService>();
+
+        var total = 0;
+        var recovered = 0;
+        var failed = 0;
+        var needsManualReview = new List<string>();
+
+        await foreach (var outcome in recoveryService.RecoverAsync(path, runId, dryRun: !apply, cancellationToken))
         {
-            failed++;
-            Console.WriteLine($"[ERROR]     {outcome.FilePath} — {outcome.Error}");
-        }
-        else if (outcome.HasRecovery)
-        {
-            recovered++;
-            var fields = string.Join(", ", outcome.RecoveredFields);
-            var verb = apply ? "RECOVERED" : "WOULD RECOVER";
-            Console.WriteLine($"[{verb}] {outcome.FilePath} — {fields}");
+            total++;
+            if (outcome.Error is not null)
+            {
+                failed++;
+                output.WriteLine($"[ERROR]     {outcome.FilePath} — {outcome.Error}");
+            }
+            else if (outcome.HasRecovery)
+            {
+                recovered++;
+                var fields = string.Join(", ", outcome.RecoveredFields);
+                var verb = apply ? "RECOVERED" : "WOULD RECOVER";
+                output.WriteLine($"[{verb}] {outcome.FilePath} — {fields}");
+            }
+
+            if (outcome.NeedsManualReview)
+            {
+                needsManualReview.Add(outcome.FilePath);
+            }
         }
 
-        if (outcome.NeedsManualReview)
+        if (needsManualReview.Count > 0)
         {
-            needsManualReview.Add(outcome.FilePath);
+            output.WriteLine($"[MANUAL REVIEW NEEDED] ({needsManualReview.Count} file(s) - no source could recover tags)");
+            foreach (var filePath in needsManualReview)
+            {
+                output.WriteLine($"  {filePath}");
+            }
         }
+
+        output.WriteLine($"Scanned {total} file(s): {recovered} recovered, {failed} error(s), {needsManualReview.Count} need manual review.");
+        if (apply && recovered > 0)
+        {
+            output.WriteLine($"Run id (use with 'rollback' to undo): {runId}");
+        }
+
+        return failed == 0 ? 0 : 1;
     }
-
-    if (needsManualReview.Count > 0)
+    finally
     {
-        Console.WriteLine($"[MANUAL REVIEW NEEDED] ({needsManualReview.Count} file(s) - no source could recover tags)");
-        foreach (var filePath in needsManualReview)
-        {
-            Console.WriteLine($"  {filePath}");
-        }
+        reportWriter?.Dispose();
     }
-
-    Console.WriteLine($"Scanned {total} file(s): {recovered} recovered, {failed} error(s), {needsManualReview.Count} need manual review.");
-    if (apply && recovered > 0)
-    {
-        Console.WriteLine($"Run id (use with 'rollback' to undo): {runId}");
-    }
-
-    return failed == 0 ? 0 : 1;
 });
 
 var fixEncodingPathArgument = new Argument<string>("path") { Description = "Root folder to scan for MP3 files" };
@@ -312,41 +358,50 @@ findDuplicatesPathArgument.Validators.Add(result =>
 
 var findDuplicatesCommand = new Command("find-duplicates", "Find duplicate MP3 files by exact content and by matching tags");
 findDuplicatesCommand.Arguments.Add(findDuplicatesPathArgument);
+findDuplicatesCommand.Options.Add(reportOption);
 findDuplicatesCommand.SetAction(async (parseResult, cancellationToken) =>
 {
     var path = parseResult.GetValue(findDuplicatesPathArgument)!;
-    var duplicateFinder = host.Services.GetRequiredService<IDuplicateFinder>();
-
-    var groups = await duplicateFinder.FindAsync(path, cancellationToken);
-    var exactGroups = groups.Where(g => g.Kind == DuplicateMatchKind.Exact).ToList();
-    var tagMatchGroups = groups.Where(g => g.Kind == DuplicateMatchKind.TagMatch).ToList();
-
-    var wastedBytes = 0L;
-    foreach (var group in exactGroups)
+    var (output, reportWriter) = CreateOutputWriter(parseResult.GetValue(reportOption));
+    try
     {
-        var groupWastedBytes = (group.FilePaths.Count - 1) * (group.FileSize ?? 0);
-        wastedBytes += groupWastedBytes;
-        Console.WriteLine($"[EXACT]     {group.FilePaths.Count} file(s), {FormatBytes(group.FileSize ?? 0)} each ({FormatBytes(groupWastedBytes)} wasted):");
-        foreach (var filePath in group.FilePaths)
-        {
-            Console.WriteLine($"            {filePath}");
-        }
-    }
+        var duplicateFinder = host.Services.GetRequiredService<IDuplicateFinder>();
 
-    foreach (var group in tagMatchGroups)
+        var groups = await duplicateFinder.FindAsync(path, cancellationToken);
+        var exactGroups = groups.Where(g => g.Kind == DuplicateMatchKind.Exact).ToList();
+        var tagMatchGroups = groups.Where(g => g.Kind == DuplicateMatchKind.TagMatch).ToList();
+
+        var wastedBytes = 0L;
+        foreach (var group in exactGroups)
+        {
+            var groupWastedBytes = (group.FilePaths.Count - 1) * (group.FileSize ?? 0);
+            wastedBytes += groupWastedBytes;
+            output.WriteLine($"[EXACT]     {group.FilePaths.Count} file(s), {FormatBytes(group.FileSize ?? 0)} each ({FormatBytes(groupWastedBytes)} wasted):");
+            foreach (var filePath in group.FilePaths)
+            {
+                output.WriteLine($"            {filePath}");
+            }
+        }
+
+        foreach (var group in tagMatchGroups)
+        {
+            output.WriteLine($"[TAG MATCH] {group.FilePaths.Count} file(s) with matching Artist/Title:");
+            foreach (var filePath in group.FilePaths)
+            {
+                output.WriteLine($"            {filePath}");
+            }
+        }
+
+        output.WriteLine(
+            $"Found {exactGroups.Count} exact group(s) ({FormatBytes(wastedBytes)} wasted) " +
+            $"and {tagMatchGroups.Count} tag-match group(s).");
+
+        return 0;
+    }
+    finally
     {
-        Console.WriteLine($"[TAG MATCH] {group.FilePaths.Count} file(s) with matching Artist/Title:");
-        foreach (var filePath in group.FilePaths)
-        {
-            Console.WriteLine($"            {filePath}");
-        }
+        reportWriter?.Dispose();
     }
-
-    Console.WriteLine(
-        $"Found {exactGroups.Count} exact group(s) ({FormatBytes(wastedBytes)} wasted) " +
-        $"and {tagMatchGroups.Count} tag-match group(s).");
-
-    return 0;
 });
 
 static string FormatBytes(long bytes) => (bytes / 1024.0 / 1024.0).ToString("0.00", CultureInfo.InvariantCulture) + " MB";
