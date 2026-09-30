@@ -32,6 +32,18 @@ public interface IOperationJournal
     public Task<JournalEntry> RecordMoveAsync(Guid runId, string originalPath, string newPath, string operationType, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Durably records that the empty directory at <paramref name="directoryPath"/> is about to
+    /// be removed. Must complete before the directory is deleted. No byte copy is needed - the
+    /// directory is empty by definition when this is called, so recreating it on restore is
+    /// enough to reverse the removal.
+    /// </summary>
+    /// <param name="runId">Identifier of the operation run this entry belongs to.</param>
+    /// <param name="directoryPath">Path of the empty directory about to be removed.</param>
+    /// <param name="operationType">Name of the operation performing the removal.</param>
+    /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    public Task<JournalEntry> RecordDirectoryRemovalAsync(Guid runId, string directoryPath, string operationType, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Streams every journal entry recorded for <paramref name="runId"/>.
     /// </summary>
     /// <param name="runId">Identifier of the operation run to look up.</param>
@@ -39,9 +51,10 @@ public interface IOperationJournal
     public IAsyncEnumerable<JournalEntry> GetEntriesAsync(Guid runId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Restores the file backed up by <paramref name="entry"/> to its original path.
+    /// Restores whatever <paramref name="entry"/> describes - a moved file, an in-place content
+    /// change, or a removed empty directory - to its original path.
     /// </summary>
-    /// <param name="entry">Entry describing the backup to restore.</param>
+    /// <param name="entry">Entry describing the change to restore.</param>
     /// <param name="cancellationToken">Token used to cancel the operation.</param>
     public Task RestoreAsync(JournalEntry entry, CancellationToken cancellationToken = default);
 }

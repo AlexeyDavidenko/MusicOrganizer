@@ -22,8 +22,8 @@ public sealed partial class RollbackRunUseCase
     }
 
     /// <summary>
-    /// Restores every journal entry recorded for <paramref name="runId"/>, streaming each entry
-    /// as it is restored.
+    /// Restores every journal entry recorded for <paramref name="runId"/>, in reverse-chronological
+    /// order, streaming each entry as it is restored.
     /// </summary>
     /// <param name="runId">Identifier of the operation run to roll back.</param>
     /// <param name="cancellationToken">Token used to stop the rollback early.</param>
@@ -33,8 +33,19 @@ public sealed partial class RollbackRunUseCase
     {
         LogRollbackStarted(runId);
 
+        var entries = new List<JournalEntry>();
         await foreach (var entry in _journal.GetEntriesAsync(runId, cancellationToken))
         {
+            entries.Add(entry);
+        }
+
+        // Undo in reverse: a later entry in a run can depend on an earlier one having already
+        // happened (e.g. organize's empty-folder pruning removes a folder only after files were
+        // moved out of it) - restoring forward would try to move a file back into a folder that
+        // hasn't been recreated yet.
+        for (var i = entries.Count - 1; i >= 0; i--)
+        {
+            var entry = entries[i];
             await _journal.RestoreAsync(entry, cancellationToken);
             yield return entry;
         }

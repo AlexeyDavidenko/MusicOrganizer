@@ -7,12 +7,12 @@ using MusicOrganizer.Domain.Journal;
 namespace MusicOrganizer.Infrastructure.Journal;
 
 /// <summary>
-/// Journal that backs up a full copy of each in-place-mutated file (or, for a move, simply
-/// records the path change) before it happens, and persists journal entries to a manifest file
-/// under the user's local application data folder — so a later, separate process invocation
-/// (e.g. a `rollback` command) can still find and restore them.
+/// Journal that backs up a full copy of each in-place-mutated file (or, for a move or an empty
+/// directory removal, simply records the path change), and persists journal entries to a
+/// manifest file under the user's local application data folder — so a later, separate process
+/// invocation (e.g. a `rollback` command) can still find and restore them.
 /// </summary>
-public sealed partial class FileBackupJournal : IOperationJournal
+public sealed partial class FileBackupJournal : IOperationJournal, IJournalMaintenance
 {
     private readonly ILogger<FileBackupJournal> _logger;
     private readonly string _journalRoot;
@@ -75,6 +75,23 @@ public sealed partial class FileBackupJournal : IOperationJournal
     }
 
     /// <inheritdoc />
+    public async Task<JournalEntry> RecordDirectoryRemovalAsync(
+        Guid runId,
+        string directoryPath,
+        string operationType,
+        CancellationToken cancellationToken = default)
+    {
+        var runDirectory = GetRunDirectory(runId);
+        Directory.CreateDirectory(runDirectory);
+
+        var entry = new JournalEntry(Guid.NewGuid(), runId, directoryPath, null, null, operationType, DateTimeOffset.UtcNow);
+        await AppendToManifestAsync(runDirectory, entry, cancellationToken);
+
+        LogEntryRecorded(entry.Id, runId, directoryPath);
+        return entry;
+    }
+
+    /// <inheritdoc />
     public async IAsyncEnumerable<JournalEntry> GetEntriesAsync(
         Guid runId,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -105,8 +122,67 @@ public sealed partial class FileBackupJournal : IOperationJournal
         {
             File.Copy(entry.BackupPath, entry.OriginalPath, overwrite: true);
         }
+        else
+        {
+            // Neither a move nor a content backup - this is an empty directory removal; it held
+            // nothing when removed, so recreating it (a no-op if something already occupies that
+            // path) is a complete, lossless undo.
+            Directory.CreateDirectory(entry.OriginalPath);
+        }
 
         LogEntryRestored(entry.Id, entry.RunId, entry.OriginalPath);
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc />
+    public async IAsyncEnumerable<JournalRunSummary> GetAllRunsAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (!Directory.Exists(_journalRoot))
+        {
+            yield break;
+        }
+
+        foreach (var runDirectory in Directory.EnumerateDirectories(_journalRoot))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!Guid.TryParse(Path.GetFileName(runDirectory), out var runId))
+            {
+                continue;
+            }
+
+            var entryCount = 0;
+            var lastActivity = DateTimeOffset.MinValue;
+            await foreach (var entry in GetEntriesAsync(runId, cancellationToken))
+            {
+                entryCount++;
+                if (entry.TimestampUtc > lastActivity)
+                {
+                    lastActivity = entry.TimestampUtc;
+                }
+            }
+
+            if (entryCount == 0)
+            {
+                continue;
+            }
+
+            yield return new JournalRunSummary(runId, lastActivity, entryCount);
+        }
+    }
+
+    /// <inheritdoc />
+    public Task DeleteRunAsync(Guid runId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var runDirectory = GetRunDirectory(runId);
+        if (Directory.Exists(runDirectory))
+        {
+            Directory.Delete(runDirectory, recursive: true);
+        }
+
         return Task.CompletedTask;
     }
 

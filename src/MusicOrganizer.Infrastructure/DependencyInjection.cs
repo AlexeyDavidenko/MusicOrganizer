@@ -30,7 +30,9 @@ public static class DependencyInjection
         services.AddTransient<IAudioTagReader, Mp3TagReader>();
         services.AddTransient<ITagWriter, Mp3TagWriter>();
         services.AddTransient<IOperationJournal, FileBackupJournal>();
+        services.AddTransient<IJournalMaintenance, FileBackupJournal>();
         services.AddTransient<IFileRenamer, FileRenamer>();
+        services.AddTransient<IDirectoryPruner, DirectoryPruner>();
         services.AddTransient<IDuplicateFileInspector, FileContentInspector>();
         services.AddTransient<IFileRemover, FileRemover>();
         services.AddTransient<IEncodingEligibilityInspector, Mp3EncodingEligibilityInspector>();
