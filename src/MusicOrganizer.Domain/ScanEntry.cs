@@ -27,8 +27,14 @@ public sealed record ScanEntry
     public bool Succeeded => Error is null;
 
     /// <summary>Creates a successful scan outcome.</summary>
+    /// <param name="filePath">Absolute path of the scanned file.</param>
+    /// <param name="tags">Tags read from the file.</param>
+    /// <returns>A result with no error.</returns>
     public static ScanEntry Success(string filePath, AudioTags tags) => new(filePath, tags, null);
 
     /// <summary>Creates a failed scan outcome.</summary>
+    /// <param name="filePath">Absolute path of the file that was being scanned.</param>
+    /// <param name="error">Human-readable reason scanning failed.</param>
+    /// <returns>A result carrying the failure reason.</returns>
     public static ScanEntry Failure(string filePath, string error) => new(filePath, null, error);
 }

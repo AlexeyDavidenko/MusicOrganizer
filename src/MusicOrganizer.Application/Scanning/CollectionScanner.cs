@@ -16,6 +16,9 @@ public sealed partial class CollectionScanner
     /// <summary>
     /// Creates a new <see cref="CollectionScanner"/>.
     /// </summary>
+    /// <param name="fileSystemScanner">Enumerates audio files under a root folder.</param>
+    /// <param name="audioTagReader">Reads a file's tags.</param>
+    /// <param name="logger">Logger.</param>
     public CollectionScanner(
         IFileSystemScanner fileSystemScanner,
         IAudioTagReader audioTagReader,
@@ -33,6 +36,7 @@ public sealed partial class CollectionScanner
     /// </summary>
     /// <param name="rootPath">Root folder to scan.</param>
     /// <param name="cancellationToken">Token used to stop the scan early.</param>
+    /// <returns>One entry per file found.</returns>
     public async IAsyncEnumerable<ScanEntry> ScanAsync(
         string rootPath,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)

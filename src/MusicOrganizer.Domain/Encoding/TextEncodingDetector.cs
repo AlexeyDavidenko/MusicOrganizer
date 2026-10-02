@@ -21,6 +21,16 @@ namespace MusicOrganizer.Domain.Encoding;
 /// </remarks>
 public static class TextEncodingDetector
 {
+    // Minimum average-letter-frequency score for a candidate to be considered plausibly real
+    // Russian text at all (calibrated against real song/artist names scoring 2-7 vs. Western
+    // Latin1 text scoring under 0.4 when wrongly run through the same scorer).
+    private const double MinimumPlausibleCyrillicScore = 2.0;
+
+    // Required ratio between the winning and losing candidate's score to pick one over the
+    // other - protects short/atypical strings (e.g. a 3-letter acronym) where both candidates
+    // can score close enough that picking either would be a guess, not a detection.
+    private const double CyrillicDecisionMargin = 1.3;
+
     // Windows-1251 and CP866 both map the same raw bytes into characters that fall inside the
     // Cyrillic Unicode block, just different ones - a plain "is this a Cyrillic letter" check
     // scores ~1.0 for *both* candidates on real Cyrillic-source bytes and can't tell them apart
@@ -65,16 +75,6 @@ public static class TextEncodingDetector
         ['ё'] = 0.04,
     };
 
-    // Minimum average-letter-frequency score for a candidate to be considered plausibly real
-    // Russian text at all (calibrated against real song/artist names scoring 2-7 vs. Western
-    // Latin1 text scoring under 0.4 when wrongly run through the same scorer).
-    private const double MinimumPlausibleCyrillicScore = 2.0;
-
-    // Required ratio between the winning and losing candidate's score to pick one over the
-    // other - protects short/atypical strings (e.g. a 3-letter acronym) where both candidates
-    // can score close enough that picking either would be a guess, not a detection.
-    private const double CyrillicDecisionMargin = 1.3;
-
     static TextEncodingDetector()
     {
         SystemTextEncoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -88,6 +88,10 @@ public static class TextEncodingDetector
     /// The text as currently decoded, assuming it came from a Latin1 (ID3v1, or ID3v2 declared
     /// Latin1) source.
     /// </param>
+    /// <returns>
+    /// A proposal with the corrected text if a better decoding was found, or <c>null</c> if the
+    /// text looks genuinely correct as-is.
+    /// </returns>
     public static TextEncodingProposal Detect(string latin1DecodedText)
     {
         if (IsAscii(latin1DecodedText))

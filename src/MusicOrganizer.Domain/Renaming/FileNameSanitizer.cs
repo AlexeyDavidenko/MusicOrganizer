@@ -17,6 +17,7 @@ public static partial class FileNameSanitizer
     /// Sanitizes a single file name component (e.g. an Artist or Title value).
     /// </summary>
     /// <param name="value">Raw text to sanitize.</param>
+    /// <returns>A safe, length-capped file name component.</returns>
     public static string SanitizeComponent(string value)
     {
         var normalized = value.Normalize(NormalizationForm.FormC).Trim();

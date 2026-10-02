@@ -11,6 +11,7 @@ public static class AudioTagsEncodingFixer
     /// </summary>
     /// <param name="current">Tags as currently read from the file.</param>
     /// <param name="eligibility">Which fields' current values are eligible for re-decoding.</param>
+    /// <returns>The proposed corrected tags, which fields changed, and whether manual review is needed.</returns>
     public static EncodingFixProposal Propose(AudioTags current, TextFieldEligibility eligibility)
     {
         var title = Evaluate(current.Title, eligibility.TitleIsLatin1Sourced);

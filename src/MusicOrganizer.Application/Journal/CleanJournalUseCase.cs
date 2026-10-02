@@ -16,6 +16,8 @@ public sealed partial class CleanJournalUseCase
     /// <summary>
     /// Creates a new <see cref="CleanJournalUseCase"/>.
     /// </summary>
+    /// <param name="journalMaintenance">Enumerates and deletes journal runs.</param>
+    /// <param name="logger">Logger.</param>
     public CleanJournalUseCase(IJournalMaintenance journalMaintenance, ILogger<CleanJournalUseCase> logger)
     {
         _journalMaintenance = journalMaintenance;
@@ -30,6 +32,7 @@ public sealed partial class CleanJournalUseCase
     /// <param name="olderThan">Minimum age (relative to now) a run must have to be pruned.</param>
     /// <param name="dryRun">When true, no runs are deleted.</param>
     /// <param name="cancellationToken">Token used to stop the run early.</param>
+    /// <returns>One outcome per run older than the cutoff.</returns>
     public async IAsyncEnumerable<JournalCleanupOutcome> CleanAsync(
         TimeSpan olderThan,
         bool dryRun,

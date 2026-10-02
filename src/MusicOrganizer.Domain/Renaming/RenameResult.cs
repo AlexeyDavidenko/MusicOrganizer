@@ -26,8 +26,14 @@ public sealed record RenameResult
     public bool Succeeded => Error is null;
 
     /// <summary>Creates a successful rename outcome.</summary>
+    /// <param name="originalPath">Path of the file before the rename.</param>
+    /// <param name="newPath">Path of the file after the rename.</param>
+    /// <returns>A result with no error.</returns>
     public static RenameResult Success(string originalPath, string newPath) => new(originalPath, newPath, null);
 
     /// <summary>Creates a failed rename outcome.</summary>
+    /// <param name="originalPath">Path of the file that was being renamed.</param>
+    /// <param name="error">Reason the rename failed.</param>
+    /// <returns>A result carrying the failure reason.</returns>
     public static RenameResult Failure(string originalPath, string error) => new(originalPath, null, error);
 }

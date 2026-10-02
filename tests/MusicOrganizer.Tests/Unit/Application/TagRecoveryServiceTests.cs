@@ -118,7 +118,10 @@ public class TagRecoveryServiceTests
         });
 
         var sut = new TagRecoveryService(
-            scanner, reader, writer, journal,
+            scanner,
+            reader,
+            writer,
+            journal,
             [firstSource, secondSource],
             NullLogger<TagRecoveryService>.Instance);
 

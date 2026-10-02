@@ -10,6 +10,7 @@ public static class DuplicateKeeperSelector
     /// comparison for a deterministic result.
     /// </summary>
     /// <param name="filePaths">Paths of the files in a duplicate group.</param>
+    /// <returns>The path of the file to keep.</returns>
     public static string SelectKeeper(IReadOnlyList<string> filePaths) =>
         filePaths
             .OrderBy(path => path.Length)

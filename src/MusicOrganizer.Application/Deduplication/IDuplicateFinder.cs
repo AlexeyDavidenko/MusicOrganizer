@@ -15,5 +15,6 @@ public interface IDuplicateFinder
     /// </summary>
     /// <param name="rootPath">Root folder to scan.</param>
     /// <param name="cancellationToken">Token used to stop the scan early.</param>
+    /// <returns>Every exact-content and tag-match duplicate group found.</returns>
     public Task<IReadOnlyList<DuplicateGroup>> FindAsync(string rootPath, CancellationToken cancellationToken = default);
 }

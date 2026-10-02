@@ -13,6 +13,7 @@ public interface IJournalMaintenance
     /// Streams a summary of every operation run currently recorded in the journal.
     /// </summary>
     /// <param name="cancellationToken">Token used to cancel enumeration.</param>
+    /// <returns>A summary of each recorded run.</returns>
     public IAsyncEnumerable<JournalRunSummary> GetAllRunsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -22,5 +23,6 @@ public interface IJournalMaintenance
     /// </summary>
     /// <param name="runId">Identifier of the run to delete.</param>
     /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>A task that completes when the run has been deleted.</returns>
     public Task DeleteRunAsync(Guid runId, CancellationToken cancellationToken = default);
 }

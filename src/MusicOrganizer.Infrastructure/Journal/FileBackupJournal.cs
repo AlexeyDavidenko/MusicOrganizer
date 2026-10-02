@@ -186,8 +186,6 @@ public sealed partial class FileBackupJournal : IOperationJournal, IJournalMaint
         return Task.CompletedTask;
     }
 
-    private string GetRunDirectory(Guid runId) => Path.Combine(_journalRoot, runId.ToString());
-
     private static string GetManifestPath(string runDirectory) => Path.Combine(runDirectory, "manifest.jsonl");
 
     private static async Task AppendToManifestAsync(string runDirectory, JournalEntry entry, CancellationToken cancellationToken)
@@ -195,6 +193,8 @@ public sealed partial class FileBackupJournal : IOperationJournal, IJournalMaint
         var line = JsonSerializer.Serialize(entry) + Environment.NewLine;
         await File.AppendAllTextAsync(GetManifestPath(runDirectory), line, cancellationToken);
     }
+
+    private string GetRunDirectory(Guid runId) => Path.Combine(_journalRoot, runId.ToString());
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Recorded journal entry {EntryId} for run {RunId} ({FilePath})")]
     private partial void LogEntryRecorded(Guid entryId, Guid runId, string filePath);

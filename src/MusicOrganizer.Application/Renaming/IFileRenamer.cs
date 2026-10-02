@@ -14,6 +14,7 @@ public interface IFileRenamer
     /// </summary>
     /// <param name="path">Path to check.</param>
     /// <param name="cancellationToken">Token used to cancel the check.</param>
+    /// <returns><see langword="true"/> if a file already exists at that path.</returns>
     public Task<bool> ExistsAsync(string path, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -22,5 +23,6 @@ public interface IFileRenamer
     /// <param name="originalPath">Current path of the file.</param>
     /// <param name="newPath">Path to rename the file to.</param>
     /// <param name="cancellationToken">Token used to cancel the rename.</param>
+    /// <returns>The outcome of the rename.</returns>
     public Task<RenameResult> RenameAsync(string originalPath, string newPath, CancellationToken cancellationToken = default);
 }

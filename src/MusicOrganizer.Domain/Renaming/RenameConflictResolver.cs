@@ -13,6 +13,7 @@ public static class RenameConflictResolver
     /// </summary>
     /// <param name="path">Original proposed path.</param>
     /// <param name="attempt">1-based attempt number.</param>
+    /// <returns>The alternative candidate path.</returns>
     public static string NextCandidate(string path, int attempt)
     {
         var directory = Path.GetDirectoryName(path) ?? string.Empty;

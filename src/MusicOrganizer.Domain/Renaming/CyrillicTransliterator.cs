@@ -36,9 +36,9 @@ public static class CyrillicTransliterator
         ['ч'] = "ch",
         ['ш'] = "sh",
         ['щ'] = "shch",
-        ['ъ'] = "",
+        ['ъ'] = string.Empty,
         ['ы'] = "y",
-        ['ь'] = "",
+        ['ь'] = string.Empty,
         ['э'] = "e",
         ['ю'] = "yu",
         ['я'] = "ya",
@@ -51,6 +51,7 @@ public static class CyrillicTransliterator
     /// Transliterates <paramref name="value"/>, leaving any non-Cyrillic character untouched.
     /// </summary>
     /// <param name="value">Text to transliterate.</param>
+    /// <returns>The transliterated text.</returns>
     public static string Transliterate(string value)
     {
         var builder = new StringBuilder(value.Length);

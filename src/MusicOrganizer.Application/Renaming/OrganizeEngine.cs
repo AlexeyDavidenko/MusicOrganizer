@@ -28,6 +28,12 @@ public sealed partial class OrganizeEngine
     /// <summary>
     /// Creates a new <see cref="OrganizeEngine"/>.
     /// </summary>
+    /// <param name="fileSystemScanner">Enumerates audio files under a root folder.</param>
+    /// <param name="audioTagReader">Reads a file's current tags.</param>
+    /// <param name="fileRenamer">Moves a file and checks whether a target path exists.</param>
+    /// <param name="journal">Records a move or folder removal before it happens.</param>
+    /// <param name="directoryPruner">Removes a folder left empty by a move, when enabled.</param>
+    /// <param name="logger">Logger.</param>
     public OrganizeEngine(
         IFileSystemScanner fileSystemScanner,
         IAudioTagReader audioTagReader,
@@ -60,6 +66,7 @@ public sealed partial class OrganizeEngine
     /// recreating it on rollback is a complete undo).
     /// </param>
     /// <param name="cancellationToken">Token used to stop the run early.</param>
+    /// <returns>One outcome per file scanned.</returns>
     public async IAsyncEnumerable<RenameOutcome> OrganizeAsync(
         string rootPath,
         Guid runId,

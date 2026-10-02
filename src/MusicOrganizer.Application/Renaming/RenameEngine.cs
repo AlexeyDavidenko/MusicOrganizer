@@ -23,6 +23,11 @@ public sealed partial class RenameEngine
     /// <summary>
     /// Creates a new <see cref="RenameEngine"/>.
     /// </summary>
+    /// <param name="fileSystemScanner">Enumerates audio files under a root folder.</param>
+    /// <param name="audioTagReader">Reads a file's current tags.</param>
+    /// <param name="fileRenamer">Renames a file and checks whether a target path exists.</param>
+    /// <param name="journal">Records a move before it happens.</param>
+    /// <param name="logger">Logger.</param>
     public RenameEngine(
         IFileSystemScanner fileSystemScanner,
         IAudioTagReader audioTagReader,
@@ -49,6 +54,7 @@ public sealed partial class RenameEngine
     /// Latin (BGN/PCGN, see <see cref="CyrillicTransliterator"/>) before building the file name.
     /// Default behavior (false) keeps the original alphabet, per ADR-0003.</param>
     /// <param name="cancellationToken">Token used to stop the run early.</param>
+    /// <returns>One outcome per file scanned.</returns>
     public async IAsyncEnumerable<RenameOutcome> RenameAsync(
         string rootPath,
         Guid runId,

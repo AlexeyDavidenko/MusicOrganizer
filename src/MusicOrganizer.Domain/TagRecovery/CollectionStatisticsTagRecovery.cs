@@ -19,6 +19,7 @@ public static class CollectionStatisticsTagRecovery
     /// </summary>
     /// <param name="tagsByPath">Tags already read for every file in the current run, keyed by
     /// file path.</param>
+    /// <returns>Per-folder consensus statistics.</returns>
     public static TagRecoveryContext Build(IReadOnlyDictionary<string, AudioTags> tagsByPath)
     {
         var byFolder = new Dictionary<string, List<AudioTags>>();
@@ -55,6 +56,7 @@ public static class CollectionStatisticsTagRecovery
     /// </summary>
     /// <param name="current">Tags currently present on the file.</param>
     /// <param name="statistics">Consensus statistics for the file's folder, if any.</param>
+    /// <returns>A proposal with any recovered fields, or unchanged tags if none applied.</returns>
     public static TagRecoveryProposal Propose(AudioTags current, FolderTagStatistics? statistics)
     {
         if (statistics is null)

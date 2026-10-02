@@ -23,6 +23,10 @@ public sealed partial class DuplicateRemovalService
     /// <summary>
     /// Creates a new <see cref="DuplicateRemovalService"/>.
     /// </summary>
+    /// <param name="duplicateFinder">Finds the duplicate groups to process.</param>
+    /// <param name="fileRemover">Deletes a single file.</param>
+    /// <param name="journal">Records each deletion so it can be rolled back.</param>
+    /// <param name="logger">Logger.</param>
     public DuplicateRemovalService(
         IDuplicateFinder duplicateFinder,
         IFileRemover fileRemover,
@@ -44,6 +48,7 @@ public sealed partial class DuplicateRemovalService
     /// <param name="runId">Identifier for this removal run, used for journaling.</param>
     /// <param name="dryRun">When true, no files are deleted and nothing is journaled.</param>
     /// <param name="cancellationToken">Token used to stop the run early.</param>
+    /// <returns>One outcome per duplicate file processed.</returns>
     public async IAsyncEnumerable<DuplicateRemovalOutcome> RemoveAsync(
         string rootPath,
         Guid runId,

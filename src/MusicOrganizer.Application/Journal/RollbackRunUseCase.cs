@@ -15,6 +15,8 @@ public sealed partial class RollbackRunUseCase
     /// <summary>
     /// Creates a new <see cref="RollbackRunUseCase"/>.
     /// </summary>
+    /// <param name="journal">Provides the entries to restore.</param>
+    /// <param name="logger">Logger.</param>
     public RollbackRunUseCase(IOperationJournal journal, ILogger<RollbackRunUseCase> logger)
     {
         _journal = journal;
@@ -27,6 +29,7 @@ public sealed partial class RollbackRunUseCase
     /// </summary>
     /// <param name="runId">Identifier of the operation run to roll back.</param>
     /// <param name="cancellationToken">Token used to stop the rollback early.</param>
+    /// <returns>Each entry as it is restored, last-recorded-first.</returns>
     public async IAsyncEnumerable<JournalEntry> RollbackAsync(
         Guid runId,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)

@@ -16,6 +16,7 @@ public interface IOperationJournal
     /// <param name="filePath">Path of the file about to be mutated.</param>
     /// <param name="operationType">Name of the operation performing the mutation.</param>
     /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>The recorded journal entry.</returns>
     public Task<JournalEntry> RecordMutationAsync(Guid runId, string filePath, string operationType, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -29,6 +30,7 @@ public interface IOperationJournal
     /// <param name="newPath">Path the file is about to be moved to.</param>
     /// <param name="operationType">Name of the operation performing the move.</param>
     /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>The recorded journal entry.</returns>
     public Task<JournalEntry> RecordMoveAsync(Guid runId, string originalPath, string newPath, string operationType, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -41,6 +43,7 @@ public interface IOperationJournal
     /// <param name="directoryPath">Path of the empty directory about to be removed.</param>
     /// <param name="operationType">Name of the operation performing the removal.</param>
     /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>The recorded journal entry.</returns>
     public Task<JournalEntry> RecordDirectoryRemovalAsync(Guid runId, string directoryPath, string operationType, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -48,6 +51,7 @@ public interface IOperationJournal
     /// </summary>
     /// <param name="runId">Identifier of the operation run to look up.</param>
     /// <param name="cancellationToken">Token used to cancel enumeration.</param>
+    /// <returns>Every entry recorded for the run.</returns>
     public IAsyncEnumerable<JournalEntry> GetEntriesAsync(Guid runId, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -56,5 +60,6 @@ public interface IOperationJournal
     /// </summary>
     /// <param name="entry">Entry describing the change to restore.</param>
     /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>A task that completes when the restore has finished.</returns>
     public Task RestoreAsync(JournalEntry entry, CancellationToken cancellationToken = default);
 }

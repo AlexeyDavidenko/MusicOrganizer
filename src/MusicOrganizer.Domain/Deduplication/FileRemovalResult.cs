@@ -22,8 +22,13 @@ public sealed record FileRemovalResult
     public bool Succeeded => Error is null;
 
     /// <summary>Creates a successful removal outcome.</summary>
+    /// <param name="filePath">Path of the file that was deleted.</param>
+    /// <returns>A result with no error.</returns>
     public static FileRemovalResult Success(string filePath) => new(filePath, null);
 
     /// <summary>Creates a failed removal outcome.</summary>
+    /// <param name="filePath">Path of the file that was being deleted.</param>
+    /// <param name="error">Reason the deletion failed.</param>
+    /// <returns>A result carrying the failure reason.</returns>
     public static FileRemovalResult Failure(string filePath, string error) => new(filePath, error);
 }

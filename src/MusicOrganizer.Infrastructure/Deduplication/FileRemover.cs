@@ -16,6 +16,7 @@ public sealed partial class FileRemover : IFileRemover
     /// <summary>
     /// Creates a new <see cref="FileRemover"/>.
     /// </summary>
+    /// <param name="logger">Logger.</param>
     public FileRemover(ILogger<FileRemover> logger)
     {
         _logger = logger;

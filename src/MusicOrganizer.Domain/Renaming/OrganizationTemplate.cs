@@ -15,6 +15,7 @@ public static class OrganizationTemplate
     /// <param name="rootPath">Root folder the collection is organized under.</param>
     /// <param name="artist">Artist tag value. Required - callers must not invoke this without one.</param>
     /// <param name="album">Album tag value, if known.</param>
+    /// <returns>The target directory, "root/Artist/Album" or "root/Artist" when Album is unknown.</returns>
     public static string BuildTargetDirectory(string rootPath, string artist, string? album)
     {
         var sanitizedArtist = FileNameSanitizer.SanitizeComponent(artist);

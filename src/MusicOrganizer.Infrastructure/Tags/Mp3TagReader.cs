@@ -16,6 +16,7 @@ public sealed partial class Mp3TagReader : IAudioTagReader
     /// <summary>
     /// Creates a new <see cref="Mp3TagReader"/>.
     /// </summary>
+    /// <param name="logger">Logger.</param>
     public Mp3TagReader(ILogger<Mp3TagReader> logger)
     {
         _logger = logger;

@@ -18,6 +18,10 @@ public sealed partial class DuplicateFinder : IDuplicateFinder
     /// <summary>
     /// Creates a new <see cref="DuplicateFinder"/>.
     /// </summary>
+    /// <param name="fileSystemScanner">Enumerates audio files under a root folder.</param>
+    /// <param name="audioTagReader">Reads tags used for tag-match duplicate detection.</param>
+    /// <param name="inspector">Computes file size and content hash for exact-match detection.</param>
+    /// <param name="logger">Logger.</param>
     public DuplicateFinder(
         IFileSystemScanner fileSystemScanner,
         IAudioTagReader audioTagReader,
@@ -38,6 +42,7 @@ public sealed partial class DuplicateFinder : IDuplicateFinder
     /// </summary>
     /// <param name="rootPath">Root folder to scan.</param>
     /// <param name="cancellationToken">Token used to stop the scan early.</param>
+    /// <returns>Every exact-content and tag-match duplicate group found.</returns>
     public async Task<IReadOnlyList<DuplicateGroup>> FindAsync(string rootPath, CancellationToken cancellationToken = default)
     {
         LogScanStarted(rootPath);
@@ -54,6 +59,18 @@ public sealed partial class DuplicateFinder : IDuplicateFinder
 
         LogScanFinished(rootPath, groups.Count);
         return groups;
+    }
+
+    private static void AddTo<TKey>(Dictionary<TKey, List<string>> map, TKey key, string path)
+        where TKey : notnull
+    {
+        if (!map.TryGetValue(key, out var list))
+        {
+            list = [];
+            map[key] = list;
+        }
+
+        list.Add(path);
     }
 
     private async Task<List<DuplicateGroup>> FindExactDuplicatesAsync(List<string> filePaths, CancellationToken cancellationToken)
@@ -137,18 +154,6 @@ public sealed partial class DuplicateFinder : IDuplicateFinder
         }
 
         return groups;
-    }
-
-    private static void AddTo<TKey>(Dictionary<TKey, List<string>> map, TKey key, string path)
-        where TKey : notnull
-    {
-        if (!map.TryGetValue(key, out var list))
-        {
-            list = [];
-            map[key] = list;
-        }
-
-        list.Add(path);
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Starting duplicate scan of {RootPath}")]

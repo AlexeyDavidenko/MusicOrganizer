@@ -17,6 +17,7 @@ public sealed partial class FileRenamer : IFileRenamer
     /// <summary>
     /// Creates a new <see cref="FileRenamer"/>.
     /// </summary>
+    /// <param name="logger">Logger.</param>
     public FileRenamer(ILogger<FileRenamer> logger)
     {
         _logger = logger;
