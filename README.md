@@ -145,8 +145,12 @@ self-contained single-file binaries for Windows, Linux, and macOS (x64/arm64).
 ## Development
 
 Before committing: `dotnet format --verify-no-changes`, `dotnet build` (zero warnings,
-`TreatWarningsAsErrors` enabled), `dotnet test`. CI (GitHub Actions) runs the same checks on
-Linux, Windows, and macOS for every pull request.
+`TreatWarningsAsErrors` enabled, `StyleCop.Analyzers` included), `dotnet test`. CI (GitHub Actions)
+runs the same checks on Linux, Windows, and macOS for every pull request.
+
+A ready-to-use [Dev Container](.devcontainer/devcontainer.json) is provided for VS Code and
+JetBrains Rider (both read the same file natively) — open the repo and reopen in container to get
+the .NET SDK, `git`, `gh`, and `docker` preinstalled, with the solution restored automatically.
 
 ## Project status
 
@@ -155,7 +159,7 @@ Under active development, first release `v0.1.0` published. Implemented: 8 comma
 `clean-journal`) plus a shared journal/rollback mechanism, all 8 tag recovery levels, encoding
 detection/correction, resilient scanning (an unreadable folder is skipped and logged instead of
 aborting the run), reversible empty-folder pruning after `organize`, plain-text file reports for
-`scan`/`recover-tags`/`find-duplicates` (`--report`), 160 passing tests, and a CI/CD pipeline that
+`scan`/`recover-tags`/`find-duplicates` (`--report`), 165 passing tests, and a CI/CD pipeline that
 builds a multi-arch Docker image and publishes tagged releases with prebuilt binaries. See the
 "Non-goals" section above for what's still missing.
 
