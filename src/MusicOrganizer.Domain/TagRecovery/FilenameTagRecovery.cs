@@ -11,6 +11,7 @@ public static class FilenameTagRecovery
     /// </summary>
     /// <param name="fileNameWithoutExtension">File name without its extension.</param>
     /// <param name="current">Tags currently present on the file.</param>
+    /// <returns>A proposal with any recovered fields, or unchanged tags if none applied.</returns>
     public static TagRecoveryProposal Propose(string fileNameWithoutExtension, AudioTags current)
     {
         var candidate = FilenameArtistTitleParser.TryParse(fileNameWithoutExtension);

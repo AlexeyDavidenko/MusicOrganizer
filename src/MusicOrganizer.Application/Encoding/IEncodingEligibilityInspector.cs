@@ -13,5 +13,6 @@ public interface IEncodingEligibilityInspector
     /// </summary>
     /// <param name="filePath">Path of the file to inspect.</param>
     /// <param name="cancellationToken">Token used to cancel the inspection.</param>
+    /// <returns>Which fields are eligible for the encoding fix.</returns>
     public Task<TextFieldEligibility> InspectAsync(string filePath, CancellationToken cancellationToken = default);
 }

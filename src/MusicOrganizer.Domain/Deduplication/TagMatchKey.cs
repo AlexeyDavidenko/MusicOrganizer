@@ -13,6 +13,7 @@ public static class TagMatchKey
     /// </summary>
     /// <param name="artist">Artist tag value.</param>
     /// <param name="title">Title tag value.</param>
+    /// <returns>A normalized key, equal for Artist/Title pairs that only differ by case or whitespace.</returns>
     public static string Build(string artist, string title) =>
         $"{Normalize(artist)}{Separator}{Normalize(title)}";
 

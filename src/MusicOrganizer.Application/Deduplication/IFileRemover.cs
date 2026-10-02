@@ -14,5 +14,6 @@ public interface IFileRemover
     /// </summary>
     /// <param name="filePath">Path of the file to delete.</param>
     /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>The outcome of the deletion.</returns>
     public Task<FileRemovalResult> DeleteAsync(string filePath, CancellationToken cancellationToken = default);
 }

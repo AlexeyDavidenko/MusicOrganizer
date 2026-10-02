@@ -16,5 +16,6 @@ public interface ITagRecoverySource
     /// earlier, higher-priority source in the chain).</param>
     /// <param name="context">Precomputed, run-wide context (e.g. folder statistics). Sources that
     /// don't need it ignore it.</param>
+    /// <returns>A proposal with any recovered fields, or unchanged tags if this source found none.</returns>
     public TagRecoveryProposal Propose(string filePath, string rootPath, AudioTags current, TagRecoveryContext context);
 }

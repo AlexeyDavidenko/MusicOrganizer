@@ -66,3 +66,41 @@ dotnet_naming_rule.interfaces_prefix.style = i_prefix
 dotnet_naming_symbols.interfaces.applicable_kinds = interface
 dotnet_naming_style.i_prefix.capitalization = pascal_case
 dotnet_naming_style.i_prefix.required_prefix = I
+
+# ---- StyleCop.Analyzers ----
+# Curated ruleset, not raw defaults - see docs/adr/ADR-0017-StyleCopRuleset.md and
+# docs/CodingStandards.md for the full rationale behind every suppression below.
+
+# SA1309: fields must not begin with underscore - directly contradicts this project's mandatory
+# _camelCase private-field convention (dotnet_naming_rule.private_fields_underscore above).
+dotnet_diagnostic.SA1309.severity = none
+
+# SA1642/SA1643: constructor/destructor summary must start with an exact canned phrase
+# ("Initializes a new instance of the ... class."). This codebase's existing constructor docs use
+# natural, contentful phrasing instead; not worth rewriting existing doc comments for no
+# readability gain.
+dotnet_diagnostic.SA1642.severity = none
+dotnet_diagnostic.SA1643.severity = none
+
+# SA1600/SA1601/SA1602: elements/partial elements/enum members must be documented - fully redundant
+# with CS1591 (already enforced via GenerateDocumentationFile + TreatWarningsAsErrors), which only
+# requires docs on public API surface, matching what this project actually wants. Enabling these
+# would also force XML doc comments onto private helper methods left undocumented by design.
+dotnet_diagnostic.SA1600.severity = none
+dotnet_diagnostic.SA1601.severity = none
+dotnet_diagnostic.SA1602.severity = none
+
+# SA1101: prefix local calls with this. - not this project's existing style anywhere in the
+# codebase; adopting it now would touch nearly every method body for no benefit.
+dotnet_diagnostic.SA1101.severity = none
+
+# SA1633: file must have a header (copyright/license) - no LICENSE file exists yet either;
+# out of scope for this personal/non-commercial project for now.
+dotnet_diagnostic.SA1633.severity = none
+
+# SA1623: property summary must start with an exact canned phrase ("Gets ...", "Gets or sets ...",
+# "Gets a value indicating whether ..."). Same rationale as SA1642/SA1643 above: this codebase's
+# existing property docs (heavily used in Domain records) describe the value directly in natural
+# language instead (e.g. "Path of the duplicate file being processed."), not worth rewriting ~40
+# existing doc comments into an accessor-verb template for no readability gain.
+dotnet_diagnostic.SA1623.severity = none

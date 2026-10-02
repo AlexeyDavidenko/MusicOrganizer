@@ -12,6 +12,7 @@ public static class DefaultRenameTemplate
     /// </summary>
     /// <param name="artist">Artist tag value.</param>
     /// <param name="title">Title tag value.</param>
+    /// <returns>The target file name, e.g. "Artist-Title.mp3".</returns>
     public static string BuildFileName(string artist, string title)
     {
         var sanitizedArtist = FileNameSanitizer.SanitizeComponent(artist);

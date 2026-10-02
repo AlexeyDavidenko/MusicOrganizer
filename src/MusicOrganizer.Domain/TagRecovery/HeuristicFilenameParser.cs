@@ -17,6 +17,7 @@ public static partial class HeuristicFilenameParser
     /// Attempts to parse <paramref name="fileNameWithoutExtension"/> into an Artist and Title.
     /// </summary>
     /// <param name="fileNameWithoutExtension">File name without its extension.</param>
+    /// <returns>The parsed Artist/Title pair, or <see langword="null"/> if still ambiguous.</returns>
     public static (string Artist, string Title)? TryParse(string fileNameWithoutExtension)
     {
         var cleaned = StripTrackNumberPrefix(StripTrailingNoise(fileNameWithoutExtension));

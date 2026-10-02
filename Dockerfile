@@ -6,7 +6,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
-COPY global.json Directory.Build.props Directory.Packages.props MusicOrganizer.sln ./
+COPY global.json Directory.Build.props Directory.Packages.props .editorconfig MusicOrganizer.sln ./
 COPY src/ ./src/
 RUN dotnet restore src/MusicOrganizer.Cli/MusicOrganizer.Cli.csproj
 

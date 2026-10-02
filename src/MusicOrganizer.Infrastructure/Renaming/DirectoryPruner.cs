@@ -15,6 +15,7 @@ public sealed partial class DirectoryPruner : IDirectoryPruner
     /// <summary>
     /// Creates a new <see cref="DirectoryPruner"/>.
     /// </summary>
+    /// <param name="logger">Logger.</param>
     public DirectoryPruner(ILogger<DirectoryPruner> logger)
     {
         _logger = logger;

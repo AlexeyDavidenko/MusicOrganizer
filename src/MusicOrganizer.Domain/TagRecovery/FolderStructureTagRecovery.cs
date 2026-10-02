@@ -22,6 +22,7 @@ public static class FolderStructureTagRecovery
     /// <param name="filePath">Path of the file being processed.</param>
     /// <param name="rootPath">Root folder the current scan/recovery run started from.</param>
     /// <param name="current">Tags currently present on the file.</param>
+    /// <returns>A proposal with any recovered fields, or unchanged tags if none applied.</returns>
     public static TagRecoveryProposal Propose(string filePath, string rootPath, AudioTags current)
     {
         var normalizedRoot = NormalizePath(rootPath);

@@ -22,6 +22,7 @@ public static class DependencyInjection
     public static IServiceCollection AddApplicationServices(this IServiceCollection services)
     {
         services.AddTransient<CollectionScanner>();
+
         // Order matters: registration order is the recovery priority chain (TAG RECOVERY in
         // PROMPT.md) - Filename (2) -> Folder structure (3-5) -> Collection statistics (6) ->
         // Heuristics (7).

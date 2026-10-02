@@ -4,8 +4,11 @@
     <!-- CA1707: underscore_separated test names (MethodUnderTest_Scenario_Expected) are the
          project's deliberate xUnit naming convention, not an oversight.
          CA1716: the Unit/Shared test folder mirrors the MusicOrganizer.Shared project it tests;
-         "Shared" is a reserved VB.NET keyword, out of scope for this C#-only project. -->
-    <NoWarn>$(NoWarn);CA1707;CA1716</NoWarn>
+         "Shared" is a reserved VB.NET keyword, out of scope for this C#-only project.
+         SA0001: StyleCop's XML doc analysis requires GenerateDocumentationFile=true, which
+         Directory.Build.props deliberately disables here - this project has no public API surface
+         to document (see that file's own comment). Expected consequence, not an oversight. -->
+    <NoWarn>$(NoWarn);CA1707;CA1716;SA0001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

@@ -18,5 +18,6 @@ public interface ITagWriter
     /// <param name="filePath">Path of the file to write to.</param>
     /// <param name="tags">Tags to write.</param>
     /// <param name="cancellationToken">Token used to cancel the write.</param>
+    /// <returns>The outcome of the write.</returns>
     public Task<TagWriteResult> WriteTagsAsync(string filePath, AudioTags tags, CancellationToken cancellationToken = default);
 }

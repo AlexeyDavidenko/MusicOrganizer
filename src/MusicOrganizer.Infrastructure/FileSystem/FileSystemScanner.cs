@@ -20,6 +20,7 @@ public sealed partial class FileSystemScanner : IFileSystemScanner
     /// <summary>
     /// Creates a new <see cref="FileSystemScanner"/>.
     /// </summary>
+    /// <param name="logger">Logger.</param>
     public FileSystemScanner(ILogger<FileSystemScanner> logger)
     {
         _logger = logger;

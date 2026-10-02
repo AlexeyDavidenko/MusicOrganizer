@@ -14,5 +14,6 @@ public interface IAudioTagReader
     /// </summary>
     /// <param name="filePath">Path of the file to read.</param>
     /// <param name="cancellationToken">Token used to cancel the read.</param>
+    /// <returns>The tags read, or a failure outcome.</returns>
     public Task<ScanEntry> ReadTagsAsync(string filePath, CancellationToken cancellationToken = default);
 }

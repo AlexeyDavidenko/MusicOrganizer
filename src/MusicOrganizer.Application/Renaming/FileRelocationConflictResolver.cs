@@ -20,6 +20,7 @@ internal static class FileRelocationConflictResolver
     /// <param name="proposedPath">Target path proposed by the caller's naming/organization template.</param>
     /// <param name="originalPath">Current path of the file being relocated.</param>
     /// <param name="cancellationToken">Token used to cancel the resolution.</param>
+    /// <returns>The free path to use, or an error if none could be found.</returns>
     public static async Task<(string? ResolvedPath, string? Error)> ResolveAsync(
         IFileRenamer fileRenamer,
         string proposedPath,

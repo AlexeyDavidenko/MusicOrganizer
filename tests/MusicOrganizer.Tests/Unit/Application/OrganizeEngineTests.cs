@@ -179,6 +179,7 @@ public class OrganizeEngineTests
         var renamer = new FakeFileRenamer(exists: _ => false);
         var journal = new FakeJournal();
         var flatDirectory = Path.Combine(RootPath, "flat");
+
         // "nested" and its parent "flat" are both empty after the move; "flat"'s own parent is
         // RootPath itself, which must never be offered to the pruner at all.
         var pruner = new FakeDirectoryPruner(canRemove: dir => !string.Equals(dir, RootPath, StringComparison.OrdinalIgnoreCase));
@@ -199,6 +200,7 @@ public class OrganizeEngineTests
         var renamer = new FakeFileRenamer(exists: _ => false);
         var journal = new FakeJournal();
         var flatDirectory = Path.Combine(RootPath, "flat");
+
         // "nested" is empty and gets removed, but "flat" still has other content -> climb stops.
         var pruner = new FakeDirectoryPruner(canRemove: dir => !string.Equals(dir, flatDirectory, StringComparison.OrdinalIgnoreCase));
         var sut = new OrganizeEngine(scanner, reader, renamer, journal, pruner, NullLogger<OrganizeEngine>.Instance);

@@ -13,6 +13,7 @@ public static class FilenameArtistTitleParser
     /// Attempts to parse <paramref name="fileNameWithoutExtension"/> into an Artist and Title.
     /// </summary>
     /// <param name="fileNameWithoutExtension">File name without its extension.</param>
+    /// <returns>The parsed Artist/Title pair, or <see langword="null"/> if the name is ambiguous.</returns>
     public static (string Artist, string Title)? TryParse(string fileNameWithoutExtension)
     {
         foreach (var separator in Separators)

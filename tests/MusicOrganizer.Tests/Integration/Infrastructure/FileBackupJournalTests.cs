@@ -8,6 +8,7 @@ namespace MusicOrganizer.Tests.Integration.Infrastructure;
 public class FileBackupJournalTests : IDisposable
 {
     private readonly string _root = Directory.CreateTempSubdirectory("musicorganizer-journal-").FullName;
+
     private string JournalRoot => Path.Combine(_root, "journal-root");
 
     [Fact]

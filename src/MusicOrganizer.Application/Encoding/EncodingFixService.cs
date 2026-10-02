@@ -26,6 +26,12 @@ public sealed partial class EncodingFixService
     /// <summary>
     /// Creates a new <see cref="EncodingFixService"/>.
     /// </summary>
+    /// <param name="fileSystemScanner">Enumerates audio files under a root folder.</param>
+    /// <param name="audioTagReader">Reads a file's current tags.</param>
+    /// <param name="eligibilityInspector">Determines which tag fields are eligible for the fix.</param>
+    /// <param name="tagWriter">Writes corrected tags back to a file.</param>
+    /// <param name="journal">Records a backup before each file is mutated.</param>
+    /// <param name="logger">Logger.</param>
     public EncodingFixService(
         IFileSystemScanner fileSystemScanner,
         IAudioTagReader audioTagReader,
@@ -51,6 +57,7 @@ public sealed partial class EncodingFixService
     /// <param name="runId">Identifier for this run, used for journaling.</param>
     /// <param name="dryRun">When true, no files are modified and nothing is journaled.</param>
     /// <param name="cancellationToken">Token used to stop the run early.</param>
+    /// <returns>One outcome per file scanned.</returns>
     public async IAsyncEnumerable<EncodingFixOutcome> FixAsync(
         string rootPath,
         Guid runId,

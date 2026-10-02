@@ -23,8 +23,13 @@ public sealed record TagWriteResult
     public bool Succeeded => Error is null;
 
     /// <summary>Creates a successful write outcome.</summary>
+    /// <param name="filePath">Path of the file that was written to.</param>
+    /// <returns>A result with no error.</returns>
     public static TagWriteResult Success(string filePath) => new(filePath, null);
 
     /// <summary>Creates a failed write outcome.</summary>
+    /// <param name="filePath">Path of the file that was being written to.</param>
+    /// <param name="error">Reason the write failed.</param>
+    /// <returns>A result carrying the failure reason.</returns>
     public static TagWriteResult Failure(string filePath, string error) => new(filePath, error);
 }

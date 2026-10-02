@@ -17,6 +17,7 @@ public sealed partial class Mp3TagWriter : ITagWriter
     /// <summary>
     /// Creates a new <see cref="Mp3TagWriter"/>.
     /// </summary>
+    /// <param name="logger">Logger.</param>
     public Mp3TagWriter(ILogger<Mp3TagWriter> logger)
     {
         _logger = logger;

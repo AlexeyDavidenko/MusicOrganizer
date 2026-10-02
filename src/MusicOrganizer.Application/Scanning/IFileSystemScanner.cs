@@ -11,5 +11,6 @@ public interface IFileSystemScanner
     /// </summary>
     /// <param name="rootPath">Root folder to scan.</param>
     /// <param name="cancellationToken">Token used to stop enumeration early.</param>
+    /// <returns>Each audio file's path, streamed lazily.</returns>
     public IAsyncEnumerable<string> EnumerateAudioFilesAsync(string rootPath, CancellationToken cancellationToken = default);
 }

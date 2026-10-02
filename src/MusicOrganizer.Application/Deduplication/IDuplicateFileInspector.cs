@@ -12,6 +12,7 @@ public interface IDuplicateFileInspector
     /// </summary>
     /// <param name="filePath">Path of the file to inspect.</param>
     /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>The file's size in bytes.</returns>
     public Task<long> GetSizeAsync(string filePath, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -19,5 +20,6 @@ public interface IDuplicateFileInspector
     /// </summary>
     /// <param name="filePath">Path of the file to hash.</param>
     /// <param name="cancellationToken">Token used to cancel the operation.</param>
+    /// <returns>The file's content hash.</returns>
     public Task<string> ComputeHashAsync(string filePath, CancellationToken cancellationToken = default);
 }

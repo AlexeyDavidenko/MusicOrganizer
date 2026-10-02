@@ -7,16 +7,17 @@ namespace MusicOrganizer.Tests.TestSupport;
 /// </summary>
 internal static class MinimalMp3Fixture
 {
-    // MPEG-1, Layer III, no CRC, 128 kbps, 44100 Hz, mono, no padding/private/copyright/emphasis.
-    private static readonly byte[] FrameHeader = [0xFF, 0xFB, 0x90, 0xC0];
-
     // 144 * 128000 / 44100, rounded down, including the 4-byte header.
     private const int FrameSize = 417;
     private const int FrameCount = 60;
 
+    // MPEG-1, Layer III, no CRC, 128 kbps, 44100 Hz, mono, no padding/private/copyright/emphasis.
+    private static readonly byte[] FrameHeader = [0xFF, 0xFB, 0x90, 0xC0];
+
     /// <summary>
     /// Writes a minimal valid MP3 file to <paramref name="filePath"/>.
     /// </summary>
+    /// <param name="filePath">Path to write the file to.</param>
     public static void CreateAt(string filePath)
     {
         var bytes = new byte[FrameSize * FrameCount];

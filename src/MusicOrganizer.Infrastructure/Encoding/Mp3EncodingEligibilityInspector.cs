@@ -19,6 +19,7 @@ public sealed partial class Mp3EncodingEligibilityInspector : IEncodingEligibili
     /// <summary>
     /// Creates a new <see cref="Mp3EncodingEligibilityInspector"/>.
     /// </summary>
+    /// <param name="logger">Logger.</param>
     public Mp3EncodingEligibilityInspector(ILogger<Mp3EncodingEligibilityInspector> logger)
     {
         _logger = logger;
