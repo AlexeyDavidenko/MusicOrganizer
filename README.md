@@ -3,9 +3,10 @@
 [![CI](https://github.com/AlexeyDavidenko/MusicOrganizer/actions/workflows/ci.yml/badge.svg)](https://github.com/AlexeyDavidenko/MusicOrganizer/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/AlexeyDavidenko/MusicOrganizer)](https://github.com/AlexeyDavidenko/MusicOrganizer/releases)
 
-A cross-platform .NET 10 CLI for maintaining large MP3 collections — from a few thousand tracks
+A cross-platform .NET 10 tool for maintaining large MP3 collections — from a few thousand tracks
 up to 1,000,000+ files. It recovers missing tags, renames files consistently, finds and removes
-duplicates, and makes every change safe to undo.
+duplicates, and makes every change safe to undo. Available as a CLI and as a desktop GUI
+(Avalonia, Windows/Linux/macOS) with full feature parity.
 
 Every operation that touches disk supports **dry-run**, is recorded in a **journal**, and can be
 **rolled back** — nothing is applied irreversibly by default.
@@ -42,6 +43,8 @@ Every operation that touches disk supports **dry-run**, is recorded in a **journ
   [--older-than-days N]`, dry-run by default, 30 days by default).
 - Every mutating command is dry-run by default; per-file errors never abort a run on the rest of
   the collection.
+- **Desktop GUI** (Avalonia) with every command above as its own screen, plus a "Save results…"
+  export and a run picker for `rollback` so you don't have to copy a run id by hand.
 
 ## Non-goals (for now)
 
@@ -58,7 +61,7 @@ without restructuring existing code.
 
 ## Architecture
 
-Clean Architecture across six projects, with dependencies flowing strictly one way:
+Clean Architecture across seven projects, with dependencies flowing strictly one way:
 
 ```
 src/
@@ -67,13 +70,18 @@ src/
   MusicOrganizer.Infrastructure/   — TagLibSharp, file system, journal/rollback storage
   MusicOrganizer.Shared/           — cross-cutting primitives/utilities
   MusicOrganizer.Cli/              — composition root: Generic Host + System.CommandLine
+  MusicOrganizer.Gui/              — composition root: Generic Host + Avalonia (MVVM)
 tests/
-  MusicOrganizer.Tests/            — Unit/ and Integration/
+  MusicOrganizer.Tests/            — Unit/, Integration/, and Architecture/
 ```
 
 `Domain` and `Shared` depend on nothing else in the solution. `Application` depends only on
-`Domain`/`Shared`. `Infrastructure` implements the ports `Application` defines. `Cli` is the only
-place all layers are wired together via dependency injection.
+`Domain`/`Shared`. `Infrastructure` implements the ports `Application` defines. `Cli` and `Gui` are
+the only places all layers are wired together via dependency injection — both call the exact same
+`AddApplicationServices()`/`AddInfrastructureServices()`, so every feature lives in `Application`/
+`Infrastructure` exactly once regardless of which front end uses it. These rules are enforced by
+both the compiler (`ProjectReference`s only go one way) and dedicated architecture tests
+(`NetArchTest`).
 
 ## Getting started
 
@@ -130,6 +138,18 @@ dotnet run --project src/MusicOrganizer.Cli -- clean-journal
 dotnet run --project src/MusicOrganizer.Cli -- clean-journal --older-than-days 7 --apply
 ```
 
+## Desktop GUI
+
+```bash
+dotnet run --project src/MusicOrganizer.Gui
+```
+
+A sidebar lists all 9 commands; each screen mirrors its CLI counterpart's options (dry-run/apply
+toggle, extra flags like `--transliterate` or `--prune-empty-folders`) and streams results into a
+list as they're processed. Every screen has a "Save results…" button to write what's shown to a
+plain-text file. `rollback` additionally lists recent runs from the journal to pick from, instead
+of requiring the run id to be pasted in by hand.
+
 ## Docker
 
 ```bash
@@ -159,9 +179,9 @@ Under active development, first release `v0.1.0` published. Implemented: 8 comma
 `clean-journal`) plus a shared journal/rollback mechanism, all 8 tag recovery levels, encoding
 detection/correction, resilient scanning (an unreadable folder is skipped and logged instead of
 aborting the run), reversible empty-folder pruning after `organize`, plain-text file reports for
-`scan`/`recover-tags`/`find-duplicates` (`--report`), 165 passing tests, and a CI/CD pipeline that
-builds a multi-arch Docker image and publishes tagged releases with prebuilt binaries. See the
-"Non-goals" section above for what's still missing.
+`scan`/`recover-tags`/`find-duplicates` (`--report`), a desktop GUI with full command parity, 165
+passing tests, and a CI/CD pipeline that builds a multi-arch Docker image and publishes tagged
+releases with prebuilt binaries. See the "Non-goals" section above for what's still missing.
 
 ## License
 

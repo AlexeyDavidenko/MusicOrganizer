@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MusicOrganizer.Gui.ViewModels"
+             xmlns:dedup="using:MusicOrganizer.Domain.Deduplication"
+             xmlns:conv="using:MusicOrganizer.Gui.Converters"
+             x:Class="MusicOrganizer.Gui.Views.FindDuplicatesView"
+             x:DataType="vm:FindDuplicatesViewModel">
+    <StackPanel Spacing="8">
+        <TextBlock Text="Find Duplicates" FontSize="20" FontWeight="Bold" />
+        <TextBlock Text="Finds duplicate files by exact content and by matching Artist/Title tags. Read-only." TextWrapping="Wrap" />
+
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Content="Browse…" Click="OnBrowseFolderClick" Margin="8,0,0,0" />
+            <TextBox Text="{Binding RootPath}" PlaceholderText="Root folder to scan" />
+        </DockPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Run" Command="{Binding RunCommand}" />
+            <Button Content="Cancel" Command="{Binding RunCancelCommand}" />
+            <Button Content="Save results…" Click="OnSaveResultsClick" />
+            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding WastedBytes, StringFormat='{}{0:N0} bytes wasted (exact groups)'}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <TextBlock Text="Exact-content groups" FontWeight="Bold" />
+        <ListBox ItemsSource="{Binding ExactGroups}" Height="180">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="dedup:DuplicateGroup">
+                    <StackPanel Margin="0,2">
+                        <TextBlock Text="{Binding FilePaths, Converter={x:Static conv:StringListConverter.Instance}}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <TextBlock Text="Tag-match groups (matching tags, different content — never removed automatically)" FontWeight="Bold" />
+        <ListBox ItemsSource="{Binding TagMatchGroups}" Height="180">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="dedup:DuplicateGroup">
+                    <StackPanel Margin="0,2">
+                        <TextBlock Text="{Binding FilePaths, Converter={x:Static conv:StringListConverter.Instance}}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </StackPanel>
+</UserControl>

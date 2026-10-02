@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MusicOrganizer.Gui.ViewModels"
+             xmlns:journal="using:MusicOrganizer.Domain.Journal"
+             x:Class="MusicOrganizer.Gui.Views.CleanJournalView"
+             x:DataType="vm:CleanJournalViewModel">
+    <StackPanel Spacing="8">
+        <TextBlock Text="Clean Journal" FontSize="20" FontWeight="Bold" />
+        <TextBlock TextWrapping="Wrap"
+                   Text="Deletes journal runs whose most recent activity is older than the cutoff below, so backups don't accumulate forever. Deleting a run permanently forfeits the ability to roll it back." />
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock Text="Older than (days):" VerticalAlignment="Center" />
+            <NumericUpDown Value="{Binding OlderThanDays}" Minimum="0" Width="120" />
+        </StackPanel>
+
+        <CheckBox Content="Apply (delete old runs)" IsChecked="{Binding Apply}" />
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Run" Command="{Binding RunCommand}" />
+            <Button Content="Cancel" Command="{Binding RunCancelCommand}" />
+            <Button Content="Save results…" Click="OnSaveResultsClick" />
+            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <ListBox ItemsSource="{Binding Results}" Height="400">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="journal:JournalCleanupOutcome">
+                    <Grid ColumnDefinitions="*,Auto,Auto,Auto" Margin="0,2">
+                        <TextBlock Grid.Column="0" Text="{Binding RunId}" />
+                        <TextBlock Grid.Column="1" Text="{Binding LastActivityAtUtc}" Margin="8,0" />
+                        <TextBlock Grid.Column="2" Text="{Binding EntryCount, StringFormat='{}{0} entry(ies)'}" Margin="0,0,8,0" />
+                        <TextBlock Grid.Column="3" Text="Deleted" IsVisible="{Binding Applied}" Foreground="Green" />
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </StackPanel>
+</UserControl>

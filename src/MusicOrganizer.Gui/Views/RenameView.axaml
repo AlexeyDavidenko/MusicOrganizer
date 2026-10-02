@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MusicOrganizer.Gui.ViewModels"
+             xmlns:renaming="using:MusicOrganizer.Domain.Renaming"
+             x:Class="MusicOrganizer.Gui.Views.RenameView"
+             x:DataType="vm:RenameViewModel">
+    <StackPanel Spacing="8">
+        <TextBlock Text="Rename" FontSize="20" FontWeight="Bold" />
+        <TextBlock TextWrapping="Wrap"
+                   Text="Renames files to the default Artist-Title.mp3 template, resolving name collisions and skipping files without enough tag data." />
+
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Content="Browse…" Click="OnBrowseFolderClick" Margin="8,0,0,0" />
+            <TextBox Text="{Binding RootPath}" PlaceholderText="Root folder to scan" />
+        </DockPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="16">
+            <CheckBox Content="Apply (rename files)" IsChecked="{Binding Apply}" />
+            <CheckBox Content="Transliterate Cyrillic to Latin (BGN/PCGN)" IsChecked="{Binding Transliterate}" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Run" Command="{Binding RunCommand}" />
+            <Button Content="Cancel" Command="{Binding RunCancelCommand}" />
+            <Button Content="Save results…" Click="OnSaveResultsClick" />
+            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <TextBlock Text="{Binding LastRunId, StringFormat='Run id: {0}'}" />
+
+        <ListBox ItemsSource="{Binding Results}" Height="400">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="renaming:RenameOutcome">
+                    <Grid ColumnDefinitions="*,*,Auto" Margin="0,2">
+                        <TextBlock Grid.Column="0" Text="{Binding OriginalPath}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="1" Text="{Binding ProposedPath}" TextTrimming="CharacterEllipsis" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="Applied" IsVisible="{Binding Applied}" Foreground="Green" />
+                            <TextBlock Text="{Binding Error}" Foreground="Red" />
+                        </StackPanel>
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </StackPanel>
+</UserControl>

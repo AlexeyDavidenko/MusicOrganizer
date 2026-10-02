@@ -1,0 +1,43 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MusicOrganizer.Gui.ViewModels"
+             xmlns:dedup="using:MusicOrganizer.Domain.Deduplication"
+             x:Class="MusicOrganizer.Gui.Views.RemoveDuplicatesView"
+             x:DataType="vm:RemoveDuplicatesViewModel">
+    <StackPanel Spacing="8">
+        <TextBlock Text="Remove Duplicates" FontSize="20" FontWeight="Bold" />
+        <TextBlock TextWrapping="Wrap"
+                   Text="Removes exact-content duplicate files, always keeping the file with the shortest path in each group. Tag-match-only groups are never touched automatically." />
+
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Content="Browse…" Click="OnBrowseFolderClick" Margin="8,0,0,0" />
+            <TextBox Text="{Binding RootPath}" PlaceholderText="Root folder to scan" />
+        </DockPanel>
+
+        <CheckBox Content="Apply (delete files)" IsChecked="{Binding Apply}" />
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Run" Command="{Binding RunCommand}" />
+            <Button Content="Cancel" Command="{Binding RunCancelCommand}" />
+            <Button Content="Save results…" Click="OnSaveResultsClick" />
+            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <TextBlock Text="{Binding LastRunId, StringFormat='Run id: {0}'}" />
+
+        <ListBox ItemsSource="{Binding Results}" Height="400">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="dedup:DuplicateRemovalOutcome">
+                    <Grid ColumnDefinitions="*,*,Auto" Margin="0,2">
+                        <TextBlock Grid.Column="0" Text="{Binding FilePath}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="1" Text="{Binding KeptFilePath, StringFormat='kept: {0}'}" TextTrimming="CharacterEllipsis" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="Applied" IsVisible="{Binding Applied}" Foreground="Green" />
+                            <TextBlock Text="{Binding Error}" Foreground="Red" />
+                        </StackPanel>
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </StackPanel>
+</UserControl>

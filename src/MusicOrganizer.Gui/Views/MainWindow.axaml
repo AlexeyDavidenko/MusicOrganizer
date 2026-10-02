@@ -1,0 +1,30 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:MusicOrganizer.Gui.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="650"
+        x:Class="MusicOrganizer.Gui.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="MusicOrganizer"
+        Width="1000" Height="650">
+
+    <Grid ColumnDefinitions="220,*">
+        <ListBox Grid.Column="0"
+                 ItemsSource="{Binding NavigationItems}"
+                 SelectedItem="{Binding SelectedNavigationItem}"
+                 Margin="8">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:NavigationItem">
+                    <TextBlock Text="{Binding Title}" Padding="4" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <ScrollViewer Grid.Column="1">
+            <ContentControl Content="{Binding CurrentPage}" Margin="16" />
+        </ScrollViewer>
+    </Grid>
+
+</Window>

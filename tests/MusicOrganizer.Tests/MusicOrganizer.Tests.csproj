@@ -30,6 +30,7 @@
     <ProjectReference Include="..\..\src\MusicOrganizer.Infrastructure\MusicOrganizer.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\MusicOrganizer.Shared\MusicOrganizer.Shared.csproj" />
     <ProjectReference Include="..\..\src\MusicOrganizer.Cli\MusicOrganizer.Cli.csproj" />
+    <ProjectReference Include="..\..\src\MusicOrganizer.Gui\MusicOrganizer.Gui.csproj" />
   </ItemGroup>
 
 </Project>

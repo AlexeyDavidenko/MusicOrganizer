@@ -11,6 +11,7 @@ public class LayerDependencyTests
     private const string ApplicationNamespace = "MusicOrganizer.Application";
     private const string InfrastructureNamespace = "MusicOrganizer.Infrastructure";
     private const string CliNamespace = "MusicOrganizer.Cli";
+    private const string GuiNamespace = "MusicOrganizer.Gui";
 
     private static readonly Assembly DomainAssembly = Assembly.Load("MusicOrganizer.Domain");
     private static readonly Assembly SharedAssembly = Assembly.Load("MusicOrganizer.Shared");
@@ -22,7 +23,7 @@ public class LayerDependencyTests
     {
         var result = Types.InAssembly(DomainAssembly)
             .Should()
-            .NotHaveDependencyOnAny(SharedNamespace, ApplicationNamespace, InfrastructureNamespace, CliNamespace)
+            .NotHaveDependencyOnAny(SharedNamespace, ApplicationNamespace, InfrastructureNamespace, CliNamespace, GuiNamespace)
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(FailureMessage(result));
@@ -33,29 +34,29 @@ public class LayerDependencyTests
     {
         var result = Types.InAssembly(SharedAssembly)
             .Should()
-            .NotHaveDependencyOnAny(DomainNamespace, ApplicationNamespace, InfrastructureNamespace, CliNamespace)
+            .NotHaveDependencyOnAny(DomainNamespace, ApplicationNamespace, InfrastructureNamespace, CliNamespace, GuiNamespace)
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(FailureMessage(result));
     }
 
     [Fact]
-    public void Application_ShouldNotDependOnInfrastructureOrCli()
+    public void Application_ShouldNotDependOnInfrastructureOrCliOrGui()
     {
         var result = Types.InAssembly(ApplicationAssembly)
             .Should()
-            .NotHaveDependencyOnAny(InfrastructureNamespace, CliNamespace)
+            .NotHaveDependencyOnAny(InfrastructureNamespace, CliNamespace, GuiNamespace)
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(FailureMessage(result));
     }
 
     [Fact]
-    public void Infrastructure_ShouldNotDependOnCli()
+    public void Infrastructure_ShouldNotDependOnCliOrGui()
     {
         var result = Types.InAssembly(InfrastructureAssembly)
             .Should()
-            .NotHaveDependencyOn(CliNamespace)
+            .NotHaveDependencyOnAny(CliNamespace, GuiNamespace)
             .GetResult();
 
         result.IsSuccessful.Should().BeTrue(FailureMessage(result));
