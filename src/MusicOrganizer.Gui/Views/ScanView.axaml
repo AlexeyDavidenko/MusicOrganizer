@@ -1,0 +1,36 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:MusicOrganizer.Gui.ViewModels"
+             xmlns:domain="using:MusicOrganizer.Domain"
+             x:Class="MusicOrganizer.Gui.Views.ScanView"
+             x:DataType="vm:ScanViewModel">
+    <StackPanel Spacing="8">
+        <TextBlock Text="Scan" FontSize="20" FontWeight="Bold" />
+        <TextBlock Text="Recursively scans a folder for MP3 files and reads their tags. Read-only." TextWrapping="Wrap" />
+
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Content="Browse…" Click="OnBrowseFolderClick" Margin="8,0,0,0" />
+            <TextBox Text="{Binding RootPath}" PlaceholderText="Root folder to scan" />
+        </DockPanel>
+
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Run" Command="{Binding RunCommand}" />
+            <Button Content="Cancel" Command="{Binding RunCancelCommand}" />
+            <Button Content="Save results…" Click="OnSaveResultsClick" />
+            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <ListBox ItemsSource="{Binding Results}" Height="400">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="domain:ScanEntry">
+                    <Grid ColumnDefinitions="*,*,*,*" Margin="0,2">
+                        <TextBlock Grid.Column="0" Text="{Binding FilePath}" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="1" Text="{Binding Tags.Artist}" Margin="8,0" />
+                        <TextBlock Grid.Column="2" Text="{Binding Tags.Title}" />
+                        <TextBlock Grid.Column="3" Text="{Binding Error}" Foreground="Red" Margin="8,0" />
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+    </StackPanel>
+</UserControl>
