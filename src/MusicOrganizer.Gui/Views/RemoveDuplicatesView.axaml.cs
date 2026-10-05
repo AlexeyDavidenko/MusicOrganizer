@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using MusicOrganizer.Application.Reporting;
 using MusicOrganizer.Gui.ViewModels;
 
 namespace MusicOrganizer.Gui.Views;
@@ -38,10 +39,20 @@ public partial class RemoveDuplicatesView : UserControl
             return;
         }
 
-        await ResultsExporter.SaveAsync(this, viewModel.Results, outcome =>
-        {
-            var status = outcome.Error is { } error ? $"[ERROR] {error}" : outcome.Applied ? "[DELETED]" : "[WOULD DELETE]";
-            return $"{status} {outcome.FilePath} (kept: {outcome.KeptFilePath})";
-        });
+        await ResultsExporter.SaveAsync(
+            this,
+            viewModel.Results,
+            outcome =>
+            {
+                var status = outcome.Error is { } error ? $"[ERROR] {error}" : outcome.Applied ? "[DELETED]" : "[WOULD DELETE]";
+                return $"{status} {outcome.FilePath} (kept: {outcome.KeptFilePath})";
+            },
+            "Remove Duplicates",
+            ["Status", "FilePath", "KeptFilePath", "Error"],
+            outcome => new ReportRow([
+                outcome.Error is not null ? "ERROR" : outcome.Applied ? "DELETED" : "WOULD DELETE",
+                outcome.FilePath,
+                outcome.KeptFilePath,
+                outcome.Error]));
     }
 }

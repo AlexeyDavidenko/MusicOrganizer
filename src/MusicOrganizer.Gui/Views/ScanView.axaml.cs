@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using MusicOrganizer.Application.Reporting;
 using MusicOrganizer.Gui.ViewModels;
 
 namespace MusicOrganizer.Gui.Views;
@@ -38,9 +39,16 @@ public partial class ScanView : UserControl
             return;
         }
 
-        await ResultsExporter.SaveAsync(this, viewModel.Results, entry =>
-            entry.Succeeded
+        await ResultsExporter.SaveAsync(
+            this,
+            viewModel.Results,
+            entry => entry.Succeeded
                 ? $"[OK]    {entry.FilePath} — {entry.Tags!.Artist ?? "?"} - {entry.Tags.Title ?? "?"}"
-                : $"[ERROR] {entry.FilePath} — {entry.Error}");
+                : $"[ERROR] {entry.FilePath} — {entry.Error}",
+            "Scan",
+            ["Status", "FilePath", "Artist", "Title", "Error"],
+            entry => entry.Succeeded
+                ? new ReportRow(["OK", entry.FilePath, entry.Tags!.Artist, entry.Tags.Title, null])
+                : new ReportRow(["ERROR", entry.FilePath, null, null, entry.Error]));
     }
 }

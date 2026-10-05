@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using MusicOrganizer.Application.Reporting;
 using MusicOrganizer.Gui.ViewModels;
 
 namespace MusicOrganizer.Gui.Views;
@@ -38,12 +39,22 @@ public partial class RenameView : UserControl
             return;
         }
 
-        await ResultsExporter.SaveAsync(this, viewModel.Results, outcome =>
-        {
-            var status = outcome.Error is { } error
-                ? $"[ERROR] {error}"
-                : outcome.Applied ? "[RENAMED]" : outcome.NeedsRename ? "[WOULD RENAME]" : "[SKIPPED]";
-            return $"{status} {outcome.OriginalPath} -> {outcome.ProposedPath}";
-        });
+        await ResultsExporter.SaveAsync(
+            this,
+            viewModel.Results,
+            outcome =>
+            {
+                var status = outcome.Error is { } error
+                    ? $"[ERROR] {error}"
+                    : outcome.Applied ? "[RENAMED]" : outcome.NeedsRename ? "[WOULD RENAME]" : "[SKIPPED]";
+                return $"{status} {outcome.OriginalPath} -> {outcome.ProposedPath}";
+            },
+            "Rename",
+            ["Status", "OriginalPath", "ProposedPath", "Error"],
+            outcome => new ReportRow([
+                outcome.Error is not null ? "ERROR" : outcome.Applied ? "RENAMED" : outcome.NeedsRename ? "WOULD RENAME" : "SKIPPED",
+                outcome.OriginalPath,
+                outcome.ProposedPath,
+                outcome.Error]));
     }
 }

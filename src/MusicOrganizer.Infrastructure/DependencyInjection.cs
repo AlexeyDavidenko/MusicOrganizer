@@ -4,12 +4,14 @@ using MusicOrganizer.Application.Encoding;
 using MusicOrganizer.Application.Journal;
 using MusicOrganizer.Application.Recovery;
 using MusicOrganizer.Application.Renaming;
+using MusicOrganizer.Application.Reporting;
 using MusicOrganizer.Application.Scanning;
 using MusicOrganizer.Infrastructure.Deduplication;
 using MusicOrganizer.Infrastructure.Encoding;
 using MusicOrganizer.Infrastructure.FileSystem;
 using MusicOrganizer.Infrastructure.Journal;
 using MusicOrganizer.Infrastructure.Renaming;
+using MusicOrganizer.Infrastructure.Reporting;
 using MusicOrganizer.Infrastructure.Tags;
 
 namespace MusicOrganizer.Infrastructure;
@@ -36,6 +38,9 @@ public static class DependencyInjection
         services.AddTransient<IDuplicateFileInspector, FileContentInspector>();
         services.AddTransient<IFileRemover, FileRemover>();
         services.AddTransient<IEncodingEligibilityInspector, Mp3EncodingEligibilityInspector>();
+        services.AddTransient<IReportWriter, JsonReportWriter>();
+        services.AddTransient<IReportWriter, CsvReportWriter>();
+        services.AddTransient<IReportWriter, HtmlReportWriter>();
         return services;
     }
 }
