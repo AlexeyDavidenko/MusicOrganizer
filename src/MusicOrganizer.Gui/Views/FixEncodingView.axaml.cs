@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using MusicOrganizer.Application.Reporting;
 using MusicOrganizer.Gui.ViewModels;
 
 namespace MusicOrganizer.Gui.Views;
@@ -38,14 +39,25 @@ public partial class FixEncodingView : UserControl
             return;
         }
 
-        await ResultsExporter.SaveAsync(this, viewModel.Results, outcome =>
-        {
-            var fields = string.Join(", ", outcome.FixedFields);
-            var status = outcome.Error is { } error
-                ? $"[ERROR] {error}"
-                : outcome.Applied ? "[FIXED]" : "[WOULD FIX]";
-            var review = outcome.NeedsManualReview ? " [MANUAL REVIEW NEEDED]" : string.Empty;
-            return $"{status} {outcome.FilePath} — {fields}{review}";
-        });
+        await ResultsExporter.SaveAsync(
+            this,
+            viewModel.Results,
+            outcome =>
+            {
+                var fields = string.Join(", ", outcome.FixedFields);
+                var status = outcome.Error is { } error
+                    ? $"[ERROR] {error}"
+                    : outcome.Applied ? "[FIXED]" : "[WOULD FIX]";
+                var review = outcome.NeedsManualReview ? " [MANUAL REVIEW NEEDED]" : string.Empty;
+                return $"{status} {outcome.FilePath} — {fields}{review}";
+            },
+            "Fix Encoding",
+            ["Status", "FilePath", "FixedFields", "Error", "NeedsManualReview"],
+            outcome => new ReportRow([
+                outcome.Error is not null ? "ERROR" : outcome.Applied ? "FIXED" : outcome.HasFix ? "WOULD FIX" : "UNCHANGED",
+                outcome.FilePath,
+                string.Join(", ", outcome.FixedFields),
+                outcome.Error,
+                outcome.NeedsManualReview.ToString()]));
     }
 }

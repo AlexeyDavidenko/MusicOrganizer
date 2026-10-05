@@ -1,5 +1,7 @@
+using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using MusicOrganizer.Application.Reporting;
 using MusicOrganizer.Gui.ViewModels;
 
 namespace MusicOrganizer.Gui.Views;
@@ -38,19 +40,17 @@ public partial class FindDuplicatesView : UserControl
             return;
         }
 
-        var lines = new List<string>();
-        foreach (var group in viewModel.ExactGroups)
-        {
-            lines.Add($"[EXACT]     {group.FilePaths.Count} file(s):");
-            lines.AddRange(group.FilePaths.Select(path => $"            {path}"));
-        }
+        var groups = viewModel.ExactGroups
+            .Select(group => (Kind: "EXACT", Header: $"[EXACT]     {group.FilePaths.Count} file(s):", Group: group))
+            .Concat(viewModel.TagMatchGroups.Select(group => (Kind: "TAG MATCH", Header: $"[TAG MATCH] {group.FilePaths.Count} file(s):", Group: group)))
+            .ToList();
 
-        foreach (var group in viewModel.TagMatchGroups)
-        {
-            lines.Add($"[TAG MATCH] {group.FilePaths.Count} file(s):");
-            lines.AddRange(group.FilePaths.Select(path => $"            {path}"));
-        }
-
-        await ResultsExporter.SaveAsync(this, lines, line => line);
+        await ResultsExporter.SaveAsync(
+            this,
+            groups,
+            item => string.Join('\n', new[] { item.Header }.Concat(item.Group.FilePaths.Select(path => $"            {path}"))),
+            "Find Duplicates",
+            ["Kind", "FileCount", "Files"],
+            item => new ReportRow([item.Kind, item.Group.FilePaths.Count.ToString(CultureInfo.InvariantCulture), string.Join("; ", item.Group.FilePaths)]));
     }
 }
