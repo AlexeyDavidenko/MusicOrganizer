@@ -30,7 +30,7 @@ pathArgument.Validators.Add(result =>
     }
 });
 
-var reportOption = new Option<string?>("--report") { Description = "Also write this command's output to a plain-text report file (overwritten each run)" };
+var reportOption = new Option<string?>("--report") { Description = "Also write this command's output to a report file (overwritten each run; see --format)" };
 reportOption.Validators.Add(result =>
 {
     var reportPath = result.GetValueOrDefault<string?>();
@@ -57,8 +57,34 @@ static (TextWriter Output, StreamWriter? ReportWriter) CreateOutputWriter(string
     return (new TeeTextWriter(Console.Out, reportWriter), reportWriter);
 }
 
-var formatOption = new Option<ReportFormat>("--format") { Description = "Report file format when --report is used: plain (default, live console tee), json, csv, or html" };
+var formatOption = new Option<ReportFormat>("--format")
+{
+    Description = "Report file format when --report is used: plain (default, live console tee), json, csv, or html",
+    HelpName = "plain|json|csv|html",
+};
 formatOption.DefaultValueFactory = _ => ReportFormat.PlainText;
+
+// The default enum parser only accepts member names, so "plain" (the documented spelling) would be
+// rejected in favor of "PlainText". Map the documented values explicitly; "plaintext" stays
+// accepted for compatibility.
+formatOption.CustomParser = result =>
+{
+    var token = result.Tokens.Single().Value;
+    switch (token.ToLowerInvariant())
+    {
+        case "plain" or "plaintext":
+            return ReportFormat.PlainText;
+        case "json":
+            return ReportFormat.Json;
+        case "csv":
+            return ReportFormat.Csv;
+        case "html":
+            return ReportFormat.Html;
+        default:
+            result.AddError($"Unknown report format '{token}'. Expected one of: plain, json, csv, html.");
+            return default;
+    }
+};
 
 static bool TryValidateReportFormat(string? reportPath, ReportFormat format)
 {
