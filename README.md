@@ -217,6 +217,11 @@ dotnet test
 
 GitHub Actions runs the same checks on Linux, Windows, and macOS for every pull request.
 
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/). Releases are
+automated with [Release Please](https://github.com/googleapis/release-please): it keeps a release
+pull request open that bumps the version and updates [`CHANGELOG.md`](CHANGELOG.md); merging it
+tags the release and publishes the binaries and Docker image.
+
 A [Dev Container](.devcontainer/devcontainer.json) is provided for VS Code and JetBrains Rider.
 Reopening the repository in the container provides the .NET SDK, `git`, `gh`, and `docker`, with
 the solution restored automatically.
@@ -232,10 +237,10 @@ architecture is designed to accommodate the following without restructuring exis
 
 ## Project status
 
-Under active development. The latest published release is
-[`v0.1.0`](https://github.com/AlexeyDavidenko/MusicOrganizer/releases/tag/v0.1.0); `main` contains
-all nine commands, the desktop application, and structured reports, covered by 200+ automated
-tests.
+Under active development. See the
+[latest release](https://github.com/AlexeyDavidenko/MusicOrganizer/releases/latest) and
+[`CHANGELOG.md`](CHANGELOG.md); `main` contains all nine commands, the desktop application, and
+structured reports, covered by 200+ automated tests.
 
 ## License
 
