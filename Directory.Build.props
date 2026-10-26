@@ -12,7 +12,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- Bumped by release-please in its release PR (see docs/adr/ADR-0021-AutomatedVersioning.md);
          release.yml still passes -p:Version from the tag, which always matches. -->
-    <Version>0.2.0</Version> <!-- x-release-please-version -->
+    <Version>0.3.0</Version> <!-- x-release-please-version -->
     <!-- NU1900: NuGet audit itself failed to run (e.g. network hiccup fetching vulnerability data) -
          not a finding. TreatWarningsAsErrors would otherwise turn a transient network failure into
          a build/CI failure. Actual vulnerability findings (NU1902/NU1903) stay hard errors. -->

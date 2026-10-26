@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/AlexeyDavidenko/MusicOrganizer/compare/v0.2.0...v0.3.0) (2026-10-26)
+
+
+### Features
+
+* **recover-tags:** recover year, track number and genre ([46c3b1d](https://github.com/AlexeyDavidenko/MusicOrganizer/commit/46c3b1d0d941e53bf603e8e48c3f5874be1491d4))
+
 ## [0.2.0](https://github.com/AlexeyDavidenko/MusicOrganizer/compare/v0.1.0...v0.2.0) (2026-10-16)
 
 
