@@ -1,7 +1,7 @@
 namespace MusicOrganizer.Domain.TagRecovery;
 
 /// <summary>
-/// Proposes filling in missing Artist/Album tags from consensus among sibling files in the same
+/// Proposes filling in missing Artist/Album/Year/Genre tags from consensus among sibling files in the same
 /// folder that already carry a value for that field (TAG RECOVERY level 6, "Existing Collection
 /// Statistics" in PROMPT.md). Pure — no IO; <see cref="Build"/> takes tags the caller already read.
 /// </summary>
@@ -45,7 +45,9 @@ public static class CollectionStatisticsTagRecovery
         {
             var artist = Consensus(tagsInFolder.Select(t => t.Artist));
             var album = Consensus(tagsInFolder.Select(t => t.Album));
-            statistics[folder] = new FolderTagStatistics(artist, album);
+            var year = Consensus(tagsInFolder.Select(t => t.Year));
+            var genre = Consensus(tagsInFolder.Select(t => t.Genre));
+            statistics[folder] = new FolderTagStatistics(artist, album, year, genre);
         }
 
         return new TagRecoveryContext(statistics);
@@ -67,6 +69,8 @@ public static class CollectionStatisticsTagRecovery
         var recoveredFields = new List<string>();
         var artist = current.Artist;
         var album = current.Album;
+        var year = current.Year;
+        var genre = current.Genre;
 
         if (artist is null && statistics.Artist is not null)
         {
@@ -80,24 +84,36 @@ public static class CollectionStatisticsTagRecovery
             recoveredFields.Add(nameof(AudioTags.Album));
         }
 
+        if (year is null && statistics.Year is not null)
+        {
+            year = statistics.Year;
+            recoveredFields.Add(nameof(AudioTags.Year));
+        }
+
+        if (genre is null && statistics.Genre is not null)
+        {
+            genre = statistics.Genre;
+            recoveredFields.Add(nameof(AudioTags.Genre));
+        }
+
         if (recoveredFields.Count == 0)
         {
             return new TagRecoveryProposal(current, []);
         }
 
-        var merged = current with { Artist = artist, Album = album };
+        var merged = current with { Artist = artist, Album = album, Year = year, Genre = genre };
         return new TagRecoveryProposal(merged, recoveredFields);
     }
 
-    private static string? Consensus(IEnumerable<string?> values)
-    {
-        var nonNull = values.Where(v => v is not null).ToList();
-        if (nonNull.Count < MinimumAgreeingSiblings)
-        {
-            return null;
-        }
+    private static string? Consensus(IEnumerable<string?> values) =>
+        AgreedValues(values.OfType<string>()) is [var value] ? value : null;
 
-        var distinct = nonNull.Distinct().ToList();
-        return distinct.Count == 1 ? distinct[0] : null;
+    private static int? Consensus(IEnumerable<int?> values) =>
+        AgreedValues(values.OfType<int>()) is [var value] ? value : null;
+
+    private static List<T> AgreedValues<T>(IEnumerable<T> nonNull)
+    {
+        var values = nonNull.ToList();
+        return values.Count < MinimumAgreeingSiblings ? [] : values.Distinct().ToList();
     }
 }
