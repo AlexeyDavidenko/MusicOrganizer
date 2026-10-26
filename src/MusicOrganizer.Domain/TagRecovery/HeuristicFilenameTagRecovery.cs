@@ -1,7 +1,7 @@
 namespace MusicOrganizer.Domain.TagRecovery;
 
 /// <summary>
-/// Proposes filling in missing Artist/Title tags from a file's name using
+/// Proposes filling in missing Artist/Title/TrackNumber tags from a file's name using
 /// <see cref="HeuristicFilenameParser"/> (TAG RECOVERY level 7, Heuristics). Never overwrites a
 /// field that is already present.
 /// </summary>
@@ -16,25 +16,29 @@ public static class HeuristicFilenameTagRecovery
     public static TagRecoveryProposal Propose(string fileNameWithoutExtension, AudioTags current)
     {
         var candidate = HeuristicFilenameParser.TryParse(fileNameWithoutExtension);
-        if (candidate is null)
-        {
-            return new TagRecoveryProposal(current, []);
-        }
+        var trackNumberCandidate = HeuristicFilenameParser.TryParseTrackNumber(fileNameWithoutExtension);
 
         var recoveredFields = new List<string>();
         var artist = current.Artist;
         var title = current.Title;
+        var trackNumber = current.TrackNumber;
 
-        if (current.Artist is null)
+        if (current.Artist is null && candidate is not null)
         {
             artist = candidate.Value.Artist;
             recoveredFields.Add(nameof(AudioTags.Artist));
         }
 
-        if (current.Title is null)
+        if (current.Title is null && candidate is not null)
         {
             title = candidate.Value.Title;
             recoveredFields.Add(nameof(AudioTags.Title));
+        }
+
+        if (current.TrackNumber is null && trackNumberCandidate is not null)
+        {
+            trackNumber = trackNumberCandidate;
+            recoveredFields.Add(nameof(AudioTags.TrackNumber));
         }
 
         if (recoveredFields.Count == 0)
@@ -42,7 +46,7 @@ public static class HeuristicFilenameTagRecovery
             return new TagRecoveryProposal(current, []);
         }
 
-        var merged = current with { Artist = artist, Title = title };
+        var merged = current with { Artist = artist, Title = title, TrackNumber = trackNumber };
         return new TagRecoveryProposal(merged, recoveredFields);
     }
 }

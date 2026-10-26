@@ -44,6 +44,33 @@ public static partial class HeuristicFilenameParser
         return null;
     }
 
+    /// <summary>
+    /// Attempts to read a leading track number from <paramref name="fileNameWithoutExtension"/>
+    /// (<c>"01 - Title"</c>, <c>"01. Title"</c>, <c>"01_Title"</c>). Stricter than the prefix
+    /// stripped by <see cref="TryParse"/>: the number must be followed by an explicit
+    /// <c>.</c>/<c>_</c>/<c>-</c> delimiter, so a plain space (<c>"50 Cent - In Da Club"</c>) is
+    /// never read as a track number.
+    /// </summary>
+    /// <param name="fileNameWithoutExtension">File name without its extension.</param>
+    /// <returns>The track number, or <see langword="null"/> if there's no confident prefix.</returns>
+    public static int? TryParseTrackNumber(string fileNameWithoutExtension)
+    {
+        var match = DelimitedTrackNumberPrefixRegex().Match(fileNameWithoutExtension);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var remainder = fileNameWithoutExtension[match.Length..].Trim();
+        if (!IsConfidentSegment(remainder))
+        {
+            return null;
+        }
+
+        var trackNumber = int.Parse(match.Groups["track"].Value, System.Globalization.CultureInfo.InvariantCulture);
+        return trackNumber > 0 ? trackNumber : null;
+    }
+
     private static string StripTrailingNoise(string value)
     {
         var result = value;
@@ -68,4 +95,7 @@ public static partial class HeuristicFilenameParser
 
     [GeneratedRegex(@"^\d{1,3}[\s._-]+")]
     private static partial Regex TrackNumberPrefixRegex();
+
+    [GeneratedRegex(@"^(?<track>\d{1,3})\s*[._-]\s*")]
+    private static partial Regex DelimitedTrackNumberPrefixRegex();
 }

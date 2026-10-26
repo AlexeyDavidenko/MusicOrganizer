@@ -16,9 +16,53 @@ public class HeuristicFilenameTagRecoveryTests
 
         var proposal = HeuristicFilenameTagRecovery.Propose(fileName, current);
 
-        proposal.RecoveredFields.Should().BeEquivalentTo(["Artist", "Title"]);
+        proposal.RecoveredFields.Should().BeEquivalentTo(["Artist", "Title", "TrackNumber"]);
         proposal.MergedTags.Artist.Should().Be("Queen");
         proposal.MergedTags.Title.Should().Be("Bohemian Rhapsody");
+        proposal.MergedTags.TrackNumber.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData("01 - Track", 1)]
+    [InlineData("07. Track", 7)]
+    [InlineData("12_Track", 12)]
+    [InlineData("3-Track", 3)]
+    public void Propose_RecoversTrackNumber_EvenWhenArtistAndTitleStayAmbiguous(string fileName, int expected)
+    {
+        var current = EmptyTags();
+
+        var proposal = HeuristicFilenameTagRecovery.Propose(fileName, current);
+
+        proposal.RecoveredFields.Should().BeEquivalentTo(["TrackNumber"]);
+        proposal.MergedTags.TrackNumber.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("50 Cent - In Da Club")]
+    [InlineData("01 Track")]
+    [InlineData("00 - Intro")]
+    [InlineData("1999 - Song")]
+    [InlineData("01 - ")]
+    [InlineData("01 - 02")]
+    public void Propose_RecoversNoTrackNumber_WithoutAConfidentDelimitedPrefix(string fileName)
+    {
+        var current = EmptyTags();
+
+        var proposal = HeuristicFilenameTagRecovery.Propose(fileName, current);
+
+        proposal.RecoveredFields.Should().NotContain("TrackNumber");
+        proposal.MergedTags.TrackNumber.Should().BeNull();
+    }
+
+    [Fact]
+    public void Propose_NeverOverwritesAnExistingTrackNumber()
+    {
+        var current = EmptyTags() with { TrackNumber = 9 };
+
+        var proposal = HeuristicFilenameTagRecovery.Propose("01 - Track", current);
+
+        proposal.RecoveredFields.Should().BeEmpty();
+        proposal.MergedTags.TrackNumber.Should().Be(9);
     }
 
     [Theory]
@@ -70,7 +114,7 @@ public class HeuristicFilenameTagRecoveryTests
 
         var proposal = HeuristicFilenameTagRecovery.Propose("01 - Some Artist - Different Title (Live)", current);
 
-        proposal.RecoveredFields.Should().BeEquivalentTo(["Artist"]);
+        proposal.RecoveredFields.Should().BeEquivalentTo(["Artist", "TrackNumber"]);
         proposal.MergedTags.Title.Should().Be("Existing Title");
         proposal.MergedTags.Artist.Should().Be("Some Artist");
     }
